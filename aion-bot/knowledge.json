@@ -1,0 +1,18 @@
+{
+  "_aviso": "Conocimiento de Aion escrito de memoria para asmodianos. Los rangos de nivel varían según la versión del servidor: edítalos aquí si EUROaion usa otros. Puedes añadir 'mobs' y 'notas' a cada zona.",
+  "faccion": "Asmodianos",
+  "capital": "Pandaemonium",
+  "zones": [
+    {"name": "Ishalgen",   "min": 1,  "max": 9,  "notas": "Zona inicial asmodiana. Al 10 se hace la misión de Ascensión a Daeva."},
+    {"name": "Morheim",    "min": 10, "max": 19, "notas": "Primera zona tras la Ascensión.", "mobs": []},
+    {"name": "Altgard",    "min": 20, "max": 29, "notas": "", "mobs": []},
+    {"name": "Beluslan",   "min": 30, "max": 39, "notas": "", "mobs": []},
+    {"name": "Brusthonin", "min": 40, "max": 49, "notas": "", "mobs": []},
+    {"name": "Gelkmaros",  "min": 50, "max": 59, "notas": "", "mobs": []}
+  ],
+  "gear_power_bonus": {
+    "0": "Equipo normal: el bot es prudente (pociones y descanso pronto).",
+    "1": "Equipo fuerte: +niveles virtuales para elegir zona, usa menos pociones y descansa menos.",
+    "2": "Equipo muy fuerte (tu caso): sube de zona antes y aguanta más daño antes de curarse."
+  }
+}
