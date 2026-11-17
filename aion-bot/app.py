@@ -808,7 +808,7 @@ ttk.Button(kf, text="Guardar / añadir", style="Accent.TButton", command=kn_appl
 ttk.Button(kf, text="Borrar", command=kn_delete).grid(row=1, column=5)
 ttk.Label(tab_kn, wraplength=820, foreground=MUTED, text=(
     "Las zonas y niveles de aquí mandan: el bot elige la zona según tu nivel (+ bonus de equipo). Ajústalas a lo que veas en EUROaion 4.6 "
-    "(selecciona una fila para editarla). Las zonas nuevas aparecen al momento en los desplegables (también puedes escribir el nombre a mano en "Zona actual")."
+    "(selecciona una fila para editarla). Las zonas nuevas aparecen al momento en los desplegables (también puedes escribir el nombre a mano en 'Zona actual')."
 )).pack(anchor="w", padx=8, pady=6)
 refresh_kn()
 

@@ -1,5 +1,8 @@
 # Novedades
 
+## 1.1.5
+- Corregido un error de sintaxis en app.py de la 1.1.4 que impedía abrir la app. Si tienes la 1.1.4, actualiza.
+
 ## 1.1.4
 - 'Zona actual' admite escribir el nombre de cualquier zona y las zonas nuevas aparecen al instante en todos los desplegables.
 
