@@ -1,0 +1,28 @@
+{
+  "_comentario": "Ajusta las teclas a tu barra de habilidades de Aion. Las teclas usan nombres de pyautogui: 'tab', '1', 'f1', 'space', 'r'...",
+  "target_key": "tab",
+  "attack_rotation": [
+    {"key": "1", "cooldown": 0.0, "delay_after": 1.2},
+    {"key": "2", "cooldown": 6.0, "delay_after": 1.5},
+    {"key": "3", "cooldown": 12.0, "delay_after": 1.5}
+  ],
+  "loot_key": "f",
+  "loot_presses": 3,
+  "buff_keys": [
+    {"key": "f5", "every_seconds": 600}
+  ],
+  "rest": {
+    "enabled": true,
+    "hp_pixel": [0, 0],
+    "hp_color_rgb": [200, 30, 30],
+    "color_tolerance": 60,
+    "heal_key": "4",
+    "sit_key": "x",
+    "rest_seconds": 20
+  },
+  "fight_timeout_seconds": 25,
+  "max_runtime_minutes": 480,
+  "pause_hotkey": "f10",
+  "stop_hotkey": "f12",
+  "random_jitter": 0.15
+}
