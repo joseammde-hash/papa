@@ -158,5 +158,10 @@
     "switch_ratio": 0.7
   },
   "spots": [],
-  "farm_plan": []
+  "farm_plan": [],
+  "guide": {
+    "enabled": true,
+    "manual_policy": "avisar",
+    "level_bonus": 0
+  }
 }

@@ -10,6 +10,7 @@ import random
 from dataclasses import dataclass
 from skillbook import SkillBook, analyze_hotbar
 from monsters import MonsterDB, clean_name, plan_zone, xp_gain
+from guide import load_guide, step_for
 from pathlib import Path
 
 BASE = Path(__file__).parent
@@ -178,6 +179,7 @@ class Brain:
         self.cfg, self.perc, self.act = cfg, perception, actuator
         self.db = db if db is not None else MonsterDB.load(MONSTERS_PATH)
         self.should_stop = lambda: False
+        self.guide = load_guide()
         self.book = book if book is not None else SkillBook.load(LEARNED_PATH, log)
         self.sleep = sleep
         self.planner = ZonePlanner(knowledge["zones"])
@@ -217,6 +219,7 @@ class Brain:
         self.last_spot_check = 0
         self.last_approach = 0
         self.warned_routes = set()
+        self.notified_step = None
 
     # -- utilidades -------------------------------------------------------
     @property
@@ -413,7 +416,19 @@ class Brain:
         if level and level != ch["level"]:
             self.log(f"¡Nivel {level}!")
             ch["level"] = level
-        rec = plan_zone(self.cfg, self.planner, ch["level"], self.power)
+        g = self.cfg.get("guide", {})
+        step = step_for(self.guide, ch["level"] + g.get("level_bonus", 0)) if g.get("enabled") else None
+        if step and step["mode"] == "manual" and g.get("manual_policy", "avisar") == "avisar":
+            sid = f"{step['from']}-{step['to']}"
+            if sid != self.notified_step:
+                self.notified_step = sid
+                self._alert(f"Guía (niv. {step['from']}-{step['to']}): {step['title']}. {step['detalle']}")
+                self.request_pause = True
+            return
+        if step and step["mode"] == "grind":
+            rec = {"name": step["zone"], "min": step["from"], "max": step["to"], "notas": step["title"]}
+        else:
+            rec = plan_zone(self.cfg, self.planner, ch["level"], self.power)
         if rec["name"] != ch["zone"] and rec["name"] != self.notified_zone:
             self.notified_zone = rec["name"]
             self._alert(f"Con nivel {ch['level']} y tu equipo, la zona ideal es "

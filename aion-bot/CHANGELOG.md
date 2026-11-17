@@ -1,5 +1,8 @@
 # Novedades
 
+## 1.2.0
+- Guía de leveling (pestaña 📖): ruta por tramos de nivel basada en guías de EuroAion 4.6. El bot farmea los tramos que puede y te avisa en los de misiones/instancias.
+
 ## 1.1.5
 - Corregido un error de sintaxis en app.py de la 1.1.4 que impedía abrir la app. Si tienes la 1.1.4, actualiza.
 

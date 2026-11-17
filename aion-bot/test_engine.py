@@ -75,6 +75,7 @@ class T(unittest.TestCase):
 
     def test_zone_alert_and_pause(self):
         cfg = load_json(CONFIG_PATH); cfg["character"].update(level=19, gear_power=2)
+        cfg["guide"]["enabled"] = False                # prueba la tabla de zonas, no la guía
         ck, alerts = Clock(), []
         b = Brain(cfg, KN, FakePerc([Status(1, 1, 0)]), FakeAct(), clock=ck,
                   log=lambda m: None, alert=alerts.append, sleep=lambda s: None)

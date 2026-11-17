@@ -15,6 +15,7 @@ from engine import BotRunner, load_json, save_json
 from skillbook import SkillBook
 from monsters import MonsterDB
 import updater
+from guide import load_guide, step_for
 
 # --- Paleta asmodiana ------------------------------------------------------
 BG, PANEL, PANEL2 = "#09050f", "#130b21", "#1c1031"
@@ -34,6 +35,8 @@ cfg.setdefault("monsters", {"enabled": True, "min_samples": 3, "keep_ratio": 0.6
                             "auto_spot": True, "spot_check_seconds": 30, "explore_minutes": 5, "switch_ratio": 0.7})
 cfg.setdefault("spots", [])
 cfg.setdefault("farm_plan", [])
+cfg.setdefault("guide", {"enabled": True, "manual_policy": "avisar", "level_bonus": 0})
+guide = load_guide()
 cfg["character"].setdefault("spot", "")
 cfg["behavior"].setdefault("approach_key", "w")
 db = MonsterDB.load(engine.MONSTERS_PATH)
@@ -732,6 +735,42 @@ ttk.Button(plr, text="Añadir", command=add_plan).pack(side="left")
 ttk.Button(plr, text="Borrar", command=del_plan).pack(side="left", padx=6)
 
 # ===========================================================================
+# Pestaña Guía
+# ===========================================================================
+POLICIES = {"Avisarme y pausar en los tramos que el bot no puede hacer (misiones, instancias)": "avisar",
+            "Seguir farmeando la zona de la tabla de Conocimiento en esos tramos": "farmear"}
+tab_gu = ttk.Frame(nb)
+nb.add(tab_gu, text="📖  Guía")
+gc = card(tab_gu, fill="x", padx=6, pady=6)
+v_guide_on = tk.BooleanVar(value=cfg["guide"].get("enabled", True))
+v_pol = tk.StringVar(value=[k for k, v in POLICIES.items() if v == cfg["guide"].get("manual_policy", "avisar")][0])
+v_gbonus = tk.IntVar(value=cfg["guide"].get("level_bonus", 0))
+ttk.Checkbutton(gc, text=f"Seguir la guía: {(guide or {}).get('nombre', 'sin guía (falta guide.json)')}", variable=v_guide_on).grid(row=0, column=0, columnspan=3, sticky="w")
+ttk.Combobox(gc, textvariable=v_pol, values=list(POLICIES), width=78, state="readonly").grid(row=1, column=0, columnspan=3, sticky="w", pady=6)
+ttk.Label(gc, text="Adelantar tramos (niveles extra por equipo fuerte)", style="Card.TLabel").grid(row=2, column=0, sticky="w")
+ttk.Spinbox(gc, from_=0, to=10, textvariable=v_gbonus, width=5).grid(row=2, column=1, sticky="w", padx=8)
+gv = ttk.Treeview(tab_gu, columns=("lv", "type", "where", "what"), show="headings", height=11)
+for col, txt, w in (("lv", "Niveles", 70), ("type", "Quién", 90), ("where", "Dónde", 170), ("what", "Qué hacer", 480)):
+    gv.heading(col, text=txt); gv.column(col, width=w, anchor="center" if col in ("lv", "type") else "w")
+gv.tag_configure("now", background=ACCENT, foreground="#0b0614")
+gv.pack(fill="x", padx=6, pady=4)
+
+
+def refresh_guide():
+    gv.delete(*gv.get_children())
+    cur = step_for(guide, cfg["character"]["level"] + int(cfg["guide"].get("level_bonus", 0))) if guide else None
+    for i, st_ in enumerate((guide or {}).get("steps", [])):
+        lv = f"{st_['from']}" if st_["from"] == st_["to"] else f"{st_['from']}-{st_['to']}"
+        gv.insert("", "end", iid=str(i), tags=("now",) if st_ is cur else (),
+                  values=(lv, "🤖 bot" if st_["mode"] == "grind" else "🧍 tú", st_["zone"], f"{st_['title']}. {st_['detalle']}"))
+
+
+ttk.Label(tab_gu, wraplength=820, foreground=MUTED, text=(
+    "La fila resaltada es tu tramo actual. En los tramos 🤖 el bot farmea la zona indicada. Los tramos 🧍 son misiones o instancias que el bot "
+    "no sabe hacer: te avisa con un sonido y se pausa para que las hagas tú (o puedes elegir que siga farmeando). "
+    "La ruta viene de guías de la comunidad (foro de EuroAion 4.6) y puede estar desactualizada: edita guide.json si algo no coincide.")).pack(anchor="w", padx=8, pady=6)
+
+# ===========================================================================
 # Pestaña Conocimiento
 # ===========================================================================
 tab_kn = ttk.Frame(nb)
@@ -820,6 +859,7 @@ refresh_kn()
 def collect():
     ch.update(level=int(v_level.get()), zone=v_zone.get(), gear_power=int(v_power.get()),
               auto_zone_check=v_auto.get(), pause_on_zone_change=v_pausez.get(), auto_route=v_route.get())
+    cfg["guide"].update(enabled=v_guide_on.get(), manual_policy=POLICIES[v_pol.get()], level_bonus=int(v_gbonus.get()))
     mc = cfg["monsters"]
     mc.update(enabled=v_mon_on.get(), keep_ratio=int(v_keep.get()) / 100, max_danger=int(v_danger.get()),
               auto_spot=v_autospot.get())
@@ -920,10 +960,10 @@ _tick = [0]
 def periodic():
     _tick[0] += 1
     if _tick[0] % 8 == 0:
-        refresh_learned(); refresh_monsters(); refresh_spots()
+        refresh_learned(); refresh_monsters(); refresh_spots(); refresh_guide()
     root.after(250, periodic)
 
 
-refresh_skills(); refresh_cal(); refresh_learned(); refresh_monsters(); refresh_spots(); refresh_plan(); pump(); periodic()
+refresh_skills(); refresh_cal(); refresh_learned(); refresh_monsters(); refresh_spots(); refresh_plan(); refresh_guide(); pump(); periodic()
 root.protocol("WM_DELETE_WINDOW", lambda: (stop(), root.destroy()))
 root.mainloop()

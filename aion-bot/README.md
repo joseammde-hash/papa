@@ -46,6 +46,12 @@ Nunca toca las teclas de pociones ni las del sistema (Tab, botín, sentarse…).
 y pregunta antes de instalar. Solo reemplaza código; **no toca** tu config, lo aprendido, monstruos ni rutas, y deja copia en `_backup/`
 (`python launcher.py --rollback` o el botón *Revertir*). Solo apunta `update.json` a un repositorio de tu confianza: se ejecuta su código.
 
+## Guía de leveling (pestaña 📖)
+`guide.json` contiene una ruta por tramos de nivel (zonas, misiones, instancias) reunida de guías de la comunidad de EuroAion 4.6.
+Donde se puede farmear (1-8 Ishalgen, 10-20 Altgard, 21-26 Morheim) el bot va solo a esa zona; donde la guía manda misiones o
+instancias (ascensión al 9, campañas, Alquimia, Adma, Balaur Temple…) el bot no puede, así que te avisa y se pausa (o sigue farmeando, a tu elección).
+Las guías son antiguas y no pude abrir los temas completos del foro: contrasta los tramos y edita `guide.json`.
+
 ## Qué decide el bot
 - **Habilidades**: por prioridad (orden de la lista), respetando cooldowns, maná mínimo, apertura (una vez por combate),
   remate (objetivo ≤ X %) y defensiva (mi vida ≤ X %). Si nada está listo, ataque básico.
