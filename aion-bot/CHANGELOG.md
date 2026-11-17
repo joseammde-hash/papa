@@ -1,5 +1,8 @@
 # Novedades
 
+## 1.6.2
+- GUARDAR-EN-ESCRITORIO.bat y RESTAURAR-DESDE-ESCRITORIO.bat: copia de seguridad de tus datos en la carpeta «json» del Escritorio.
+
 ## 1.6.1
 - El buscador reconoce clientes de servidores privados (carpetas tipo EUROaion sin aion.bin) y mira también Escritorio y Descargas.
 
