@@ -18,14 +18,19 @@ F10 pausa · F12 detiene · ratón a una esquina = parada de emergencia.
 
 ## Auto-habilidades (pestaña ✦)
 El bot puede **escanear tu barra de acceso rápido**, aprender qué hace cada habilidad y usarlas solo, incluidas las nuevas.
-1. Pestaña *Auto-habilidades* → *Marcar mi barra* (esquinas de TODA la barra), indica columnas/filas y las teclas de cada hueco
-   (p. ej. `1,2,3,4,5,6,7,8,9,0`; con una segunda fila `,shift` en modificadores).
+1. Pestaña *Auto-habilidades* → *Marcar mi barra* (esquinas de TODA la barra: todas las filas), indica columnas y filas, y en
+   *Filas a ignorar* la de pergaminos/consumibles (1 = arriba).
+   Por defecto el bot lanza cada habilidad con un **clic del ratón sobre su hueco**, así que NO necesitas conocer las teclas.
+   (Si prefieres teclas, elige ese modo e indica teclas y modificadores por fila.) El ratón no debe usarse mientras corre el bot;
+   si los clics caen desplazados, pon la escala de pantalla de Windows al 100 %.
 2. *Escanear ahora*: detecta los iconos. Elige el modo: manual / mixto / totalmente automático.
 3. Al combatir, cada habilidad desconocida se **prueba** (solo con tu vida ≥ 60 % y el objetivo con vida) y mide su efecto:
    baja la vida del enemigo más que el ataque básico → **daño**; te sube la vida → **curación**; nada → **utilidad** (no se usa sola).
 4. Elige la de más daño medio cuando está lista (se ve por el icono: oscuro = enfriando), cura si tu vida < 50 %.
 5. Si pones una habilidad nueva en la barra, se detecta y se prueba sola. Lo aprendido se guarda en `skills_learned.json`.
 6. Corrígelo con *Forzar rol* (daño, curación, buff, ignorar) si se equivoca; los buffs y DoT suelen salir como "utilidad".
+Antes de lanzar el bot pulsa *Escanear ahora* (no pulsa nada): verás los huecos detectados y podrás marcar como *Ignorar* los de
+pociones u objetos que estén en las filas que sí usas.
 Nunca toca las teclas de pociones ni las del sistema (Tab, botín, sentarse…). Necesita la barra de vida del objetivo calibrada.
 
 ## Qué decide el bot

@@ -133,6 +133,9 @@ class Actuator:
         else:
             self.pg.press(key)
 
+    def click(self, x, y):
+        self.pg.click(x, y)
+
     def down(self, key):
         self.pg.keyDown(key)
 
@@ -310,7 +313,10 @@ class Brain:
         if not pick:
             return None
         e, why = pick
-        self.act.press(e["key"])
+        if self.cfg.get("hotbar", {}).get("input", "click") == "click" and e.get("pos"):
+            self.act.click(*e["pos"])
+        else:
+            self.act.press(e["key"])
         self.last_used["auto:" + e["id"]] = now
         self.next_skill_time = now + ac.get("after_delay", 1.2)
         if why == "explore":

@@ -59,6 +59,20 @@ class T(unittest.TestCase):
         self.assertEqual([s.key for s in sl if s.idx in (10, 11, 20)], ["shift+1", "shift+2", "ctrl+1"])
         self.assertTrue(sl[10].occupied and sl[20].occupied)
 
+    def test_click_mode_without_keys(self):
+        hb = {"cols": 10, "rows": 3, "keys": [], "row_mods": [], "ignore_rows": [0], "input": "click",
+              "occupied_std": 12, "region": [100, 500, 500, 620]}
+        img = Image.new("RGB", (400, 120), (40, 40, 40))
+        d = ImageDraw.Draw(img)
+        icon(d, 40, 9)                                    # fila 1 (ignorada)
+        tile = Image.new("RGB", (40, 40), (40, 40, 40)); icon(ImageDraw.Draw(tile), 0, 21)
+        img.paste(tile, (80, 40))                         # fila 2, columna 3
+        sl = analyze_hotbar(img, hb)
+        occ = [s for s in sl if s.occupied]
+        self.assertEqual([(s.idx, s.key, s.x, s.y) for s in occ], [(12, "fila2·3", 200, 560)])
+        b = SkillBook(log=lambda m: None)
+        self.assertEqual(b.update(sl, 0)[0]["pos"], [200, 560])
+
     def test_learning_roles(self):
         b = SkillBook(log=lambda m: None)
         b.update(analyze_hotbar(bar([5, 9, 18, 33]), HB), 0)
@@ -112,7 +126,9 @@ class T(unittest.TestCase):
         for _ in range(5):
             out += b.tick(); ck.adv(1.3)
         self.assertTrue(any(a.startswith("auto:") and a.endswith(":explore") for a in out))
-        self.assertIn("9", act.keys)                       # pulsó la tecla de la habilidad nueva
+        cfg2_click = cfg["hotbar"].get("input")
+        self.assertEqual(cfg2_click, "click")
+        self.assertTrue(any(k.startswith("click:") for k in act.keys))   # la lanzó con un clic
         e = list(b.book.entries.values())[0]
         self.assertGreater(e["avg_drop"], 20)              # observó que baja mucho la vida del objetivo
 

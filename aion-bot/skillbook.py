@@ -24,6 +24,8 @@ class Slot:
     occupied: bool
     sig: int
     bright: float
+    x: int = 0          # centro del hueco en pantalla (para lanzar con clic)
+    y: int = 0
 
 
 def hamming(a, b):
@@ -37,6 +39,8 @@ def analyze_hotbar(img, hb):
     cw, ch = w / cols, h / rows
     mods = hb.get("row_mods") or []
     keys = hb.get("keys") or []
+    click = hb.get("input", "click") == "click"
+    ox, oy = (hb.get("region") or [0, 0])[:2]
     skip = set(hb.get("ignore_rows") or [])     # filas (0 = la de arriba) con pergaminos/consumibles
     slots = []
     for r in range(rows):
@@ -56,7 +60,11 @@ def analyze_hotbar(img, hb):
                 sig = (sig << 1) | (1 if v > m else 0)
             base = keys[c] if c < len(keys) else ""
             key = f"{mod}+{base}" if (mod and base) else base
-            slots.append(Slot(r * cols + c, key, bool(base) and r not in skip and std >= hb.get("occupied_std", 12), sig, mean))
+            if click and not base:
+                key = f"fila{r + 1}·{c + 1}"          # sin tecla: el hueco se identifica por su posición
+            usable = bool(base) or click
+            slots.append(Slot(r * cols + c, key, usable and r not in skip and std >= hb.get("occupied_std", 12),
+                              sig, mean, int(ox + (c + .5) * cw), int(oy + (r + .5) * ch)))
     return slots
 
 
@@ -118,13 +126,15 @@ class SkillBook:
                 eid = f"s{len(self.entries) + 1}_{sl.sig & 0xffff:04x}"
                 e = {"id": eid, "sig": sl.sig, "name": f"Habilidad {sl.key}", "key": sl.key,
                      "role": "unknown", "role_user": "auto", "n": 0, "avg_drop": 0.0,
-                     "avg_heal": 0.0, "cooldown": 0.0, "ref_bright": sl.bright}
+                     "avg_heal": 0.0, "cooldown": 0.0, "ref_bright": sl.bright, "pos": [sl.x, sl.y]}
                 self.entries[eid] = e
                 new.append(e)
                 self.dirty = True
             if e["key"] != sl.key:
                 e["key"] = sl.key
                 self.dirty = True
+            if sl.x:
+                e["pos"] = [sl.x, sl.y]
             e["ref_bright"] = max(e.get("ref_bright", 0), sl.bright)
             ready = sl.bright >= READY_RATIO * e["ref_bright"]
             prev = self.live.get(e["id"])

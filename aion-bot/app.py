@@ -397,12 +397,16 @@ hb_cfg, ac_cfg = cfg["hotbar"], cfg["auto_skills"]
 v_auto_on = tk.BooleanVar(value=ac_cfg.get("enabled", True))
 v_mode = tk.StringVar(value=[k for k, v in MODES.items() if v == ac_cfg.get("mode", "hybrid")][0])
 v_cols, v_rows = tk.IntVar(value=hb_cfg["cols"]), tk.IntVar(value=hb_cfg["rows"])
+INPUTS = {"Clic del ratón en cada hueco (no necesita saber las teclas)": "click",
+          "Teclas (tengo que indicarlas abajo)": "keys"}
+v_input = tk.StringVar(value=[k for k, v in INPUTS.items() if v == hb_cfg.get("input", "click")][0])
 v_skip = tk.StringVar(value=",".join(str(i + 1) for i in hb_cfg.get("ignore_rows", [])))
 v_keys, v_mods = tk.StringVar(value=",".join(hb_cfg["keys"])), tk.StringVar(value=",".join(hb_cfg.get("row_mods", [""])))
 ac_ = card(tab_au, fill="x", padx=6, pady=6)
 ttk.Checkbutton(ac_, text="Escanear mi barra de habilidades y usar las que aprenda (incluidas las nuevas)",
                 variable=v_auto_on).grid(row=0, column=0, columnspan=4, sticky="w")
 ttk.Combobox(ac_, textvariable=v_mode, values=list(MODES), width=48, state="readonly").grid(row=1, column=0, columnspan=4, sticky="w", pady=6)
+ttk.Combobox(ac_, textvariable=v_input, values=list(INPUTS), width=48, state="readonly").grid(row=8, column=0, columnspan=4, sticky="w", pady=(10, 0))
 ttk.Button(ac_, text="Marcar mi barra", command=lambda: capture("hotbar", "Barra")).grid(row=2, column=0, sticky="w")
 cal_lbl["hotbar"] = ttk.Label(ac_, text="", style="Muted.TLabel")
 cal_lbl["hotbar"].grid(row=2, column=1, columnspan=3, sticky="w", padx=8)
@@ -561,6 +565,7 @@ def collect():
     hb.update(cols=int(v_cols.get()), rows=int(v_rows.get()),
               keys=[k.strip() for k in v_keys.get().split(",")],
               row_mods=[m.strip() for m in v_mods.get().split(",")],
+              input=INPUTS[v_input.get()],
               ignore_rows=[int(x) - 1 for x in v_skip.get().split(",") if x.strip().isdigit()])
     ac.update(enabled=v_auto_on.get(), mode=MODES[v_mode.get()])
     for k, (key, below, cd) in pv.items():

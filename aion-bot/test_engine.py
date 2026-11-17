@@ -15,6 +15,7 @@ class FakeAct:
     def __init__(self): self.keys = []
     def press(self, k): self.keys.append(k)
     def down(self, k): self.keys.append("down:" + k)
+    def click(self, x, y): self.keys.append(f"click:{x},{y}")
     def up(self, k): self.keys.append("up:" + k)
 
 
