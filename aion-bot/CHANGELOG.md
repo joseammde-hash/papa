@@ -1,5 +1,8 @@
 # Novedades
 
+## 1.1.4
+- 'Zona actual' admite escribir el nombre de cualquier zona y las zonas nuevas aparecen al instante en todos los desplegables.
+
 ## 1.1.3
 - La tabla de zonas se puede editar desde la pestaña Conocimiento (nombre, niveles, notas).
 

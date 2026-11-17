@@ -181,8 +181,8 @@ v_route = tk.BooleanVar(value=ch["auto_route"])
 ttk.Label(c, text="Nivel", style="Card.TLabel").grid(row=0, column=0, sticky="w", pady=4)
 ttk.Spinbox(c, from_=1, to=65, textvariable=v_level, width=6).grid(row=0, column=1, sticky="w", padx=8)
 ttk.Label(c, text="Zona actual", style="Card.TLabel").grid(row=1, column=0, sticky="w", pady=4)
-ttk.Combobox(c, textvariable=v_zone, values=[z["name"] for z in kn["zones"]], width=16,
-             state="readonly").grid(row=1, column=1, sticky="w", padx=8)
+cb_zone = ttk.Combobox(c, textvariable=v_zone, values=[z["name"] for z in kn["zones"]], width=22)
+cb_zone.grid(row=1, column=1, sticky="w", padx=8)      # editable: puedes escribir el nombre de tu zona
 ttk.Label(c, text="Poder del equipo", style="Card.TLabel").grid(row=2, column=0, sticky="nw", pady=4)
 pw = ttk.Frame(c, style="Card.TFrame")
 pw.grid(row=2, column=1, sticky="w", padx=8)
@@ -631,7 +631,8 @@ spv.pack(fill="x", pady=6)
 v_sp_name, v_sp_zone = tk.StringVar(), tk.StringVar(value=zn[0])
 spr = ttk.Frame(sp_card, style="Card.TFrame"); spr.pack(anchor="w")
 ttk.Entry(spr, textvariable=v_sp_name, width=22).pack(side="left")
-ttk.Combobox(spr, textvariable=v_sp_zone, values=zn, width=12, state="readonly").pack(side="left", padx=6)
+cb_spzone = ttk.Combobox(spr, textvariable=v_sp_zone, values=zn, width=16)
+cb_spzone.pack(side="left", padx=6)
 
 
 def route_values():
@@ -701,7 +702,8 @@ plv.pack(anchor="w", pady=6)
 v_pl_lv, v_pl_zone = tk.IntVar(value=10), tk.StringVar(value=zn[1])
 plr = ttk.Frame(pl_card, style="Card.TFrame"); plr.pack(anchor="w")
 ttk.Spinbox(plr, from_=1, to=65, textvariable=v_pl_lv, width=5).pack(side="left")
-ttk.Combobox(plr, textvariable=v_pl_zone, values=zn, width=12, state="readonly").pack(side="left", padx=6)
+cb_plzone = ttk.Combobox(plr, textvariable=v_pl_zone, values=zn, width=16)
+cb_plzone.pack(side="left", padx=6)
 
 
 def refresh_plan():
@@ -763,8 +765,17 @@ def kn_select(_e=None):
 kv.bind("<<TreeviewSelect>>", kn_select)
 
 
+def refresh_zone_lists():
+    names = [z["name"] for z in sorted(kn["zones"], key=lambda z: z["min"])]
+    zn[:] = names
+    for cb in (cb_zone, cb_spzone, cb_plzone):
+        cb.config(values=names)
+    route_values()
+
+
 def kn_save_all():
     kn["zones"].sort(key=lambda z: z["min"])
+    refresh_zone_lists()
     planner.zones = sorted(kn["zones"], key=lambda z: z["min"])
     save_json(engine.KNOWLEDGE_PATH, kn)
     refresh_kn(); refresh_rec()
@@ -797,7 +808,7 @@ ttk.Button(kf, text="Guardar / añadir", style="Accent.TButton", command=kn_appl
 ttk.Button(kf, text="Borrar", command=kn_delete).grid(row=1, column=5)
 ttk.Label(tab_kn, wraplength=820, foreground=MUTED, text=(
     "Las zonas y niveles de aquí mandan: el bot elige la zona según tu nivel (+ bonus de equipo). Ajústalas a lo que veas en EUROaion 4.6 "
-    "(selecciona una fila para editarla). Tras añadir o borrar zonas, reinicia la app para que aparezcan en los desplegables de otras pestañas."
+    "(selecciona una fila para editarla). Las zonas nuevas aparecen al momento en los desplegables (también puedes escribir el nombre a mano en "Zona actual")."
 )).pack(anchor="w", padx=8, pady=6)
 refresh_kn()
 
