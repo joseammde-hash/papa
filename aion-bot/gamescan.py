@@ -38,7 +38,8 @@ def anon(p):
 def find_install(roots=None, max_depth=4, time_limit=25):
     """Busca carpetas que contengan bin32/bin64/aion.bin. Devuelve una lista de rutas."""
     if roots is None:
-        roots = []
+        roots = [Path.home() / x for x in ("Desktop", "Escritorio", "Downloads", "Descargas", "Documents", "Documentos")]
+        roots = [r for r in roots if r.exists()]
         for d in "CDEFGH":
             for sub in ("Program Files (x86)", "Program Files", "Games", "Juegos", ""):
                 p = Path(f"{d}:\\{sub}")
@@ -54,7 +55,10 @@ def find_install(roots=None, max_depth=4, time_limit=25):
                 dirs[:] = []
             dirs[:] = [d for d in dirs if d.lower() not in ("windows", "$recycle.bin", "system volume information")]
             low = {f.lower() for f in files}
-            if "aion.bin" in low or ("system.cfg" in low and "aion" in dirpath.lower()):
+            sub = {d.lower() for d in dirs}
+            named = "aion" in Path(dirpath).name.lower() and (bool({"bin32", "bin64", "data", "l10n"} & sub)
+                                                              or any(f.endswith(".pak") for f in low))
+            if "aion.bin" in low or ("system.cfg" in low and "aion" in dirpath.lower()) or named:
                 parent = Path(dirpath)
                 if parent.name.lower() in ("bin32", "bin64"):
                     parent = parent.parent

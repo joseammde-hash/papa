@@ -1,5 +1,8 @@
 # Novedades
 
+## 1.6.1
+- El buscador reconoce clientes de servidores privados (carpetas tipo EUROaion sin aion.bin) y mira también Escritorio y Descargas.
+
 ## 1.6.0
 - Pestaña 📂 Archivos del juego: busca tu carpeta de Aion, la escanea (solo lectura), extrae los .pak legibles e importa nombres y niveles de monstruos y habilidades.
 - El bot descarta monstruos muy por debajo o por encima de tu nivel usando esos datos.

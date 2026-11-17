@@ -39,6 +39,14 @@ class T(unittest.TestCase):
         found = gamescan.find_install([Path(self.d).parent], max_depth=3)
         self.assertIn(Path(self.d), found)
 
+    def test_find_private_server_client_without_aion_bin(self):
+        base = Path(tempfile.mkdtemp())
+        (base / "Juegos" / "EUROaion" / "data").mkdir(parents=True)
+        (base / "Juegos" / "EUROaion" / "data" / "data.pak").write_bytes(b"x" * 100)
+        (base / "Juegos" / "Otra" / "data").mkdir(parents=True)                     # no es Aion
+        found = gamescan.find_install([base], max_depth=4)
+        self.assertEqual(found, [base / "Juegos" / "EUROaion"])
+
     def test_inventory_classifies_files(self):
         inv = gamescan.inventory(self.d, log=lambda m: None)
         kinds = {p["file"]: p["kind"] for p in inv["paks"]}
