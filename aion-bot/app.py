@@ -17,6 +17,8 @@ from monsters import MonsterDB
 import updater
 from guide import load_guide, step_for
 import vision
+import inputs
+import diagnostics
 
 # --- Paleta asmodiana ------------------------------------------------------
 BG, PANEL, PANEL2 = "#09050f", "#130b21", "#1c1031"
@@ -736,6 +738,82 @@ ttk.Button(plr, text="Añadir", command=add_plan).pack(side="left")
 ttk.Button(plr, text="Borrar", command=del_plan).pack(side="left", padx=6)
 
 # ===========================================================================
+# Pestaña Diagnóstico
+# ===========================================================================
+tab_dg = ttk.Frame(nb)
+nb.add(tab_dg, text="🔧  Diagnóstico")
+dc = card(tab_dg, fill="x", padx=6, pady=6)
+v_dsecs = tk.IntVar(value=6)
+ttk.Label(dc, text="Prueba si el personaje se mueve cuando el bot pulsa teclas. Ponte en un sitio SEGURO (sin enemigos), con Aion en "
+                   "primer plano. El bot mantendrá 'W' un segundo y medio con dos métodos distintos, comprueba si la imagen cambia y "
+                   "vuelve atrás con 'S'. Si solo funciona uno, lo deja activado solo.",
+          style="Muted.TLabel", wraplength=800).grid(row=0, column=0, columnspan=5, sticky="w")
+b_diag = ttk.Button(dc, text="▶  Probar movimiento en", style="Accent.TButton")
+b_diag.grid(row=1, column=0, pady=8, sticky="w")
+ttk.Spinbox(dc, from_=3, to=20, textvariable=v_dsecs, width=4).grid(row=1, column=1, padx=4)
+ttk.Label(dc, text="segundos", style="Card.TLabel").grid(row=1, column=2)
+lbl_dg = ttk.Label(dc, text="", style="Muted.TLabel")
+lbl_dg.grid(row=2, column=0, columnspan=5, sticky="w")
+dtext = tk.Text(tab_dg, bg=PANEL2, fg=TEXT, relief="flat", height=14, font=("Segoe UI", 10), state="disabled",
+                highlightthickness=1, highlightbackground=LINE, wrap="word")
+dtext.pack(fill="both", expand=True, padx=6, pady=6)
+dtext.tag_configure("ok", foreground=OK)
+dtext.tag_configure("warn", foreground="#ffd166")
+dtext.tag_configure("bad", foreground=DANGER)
+
+
+def diag_worker(title):
+    try:
+        import pyautogui
+        w, h = pyautogui.size()
+        reg = (int(w * .25), int(h * .2), int(w * .5), int(h * .5))
+
+        def hold(mode, key, secs):
+            if mode == "scancode":
+                inputs.key_down(key); time.sleep(secs); inputs.key_up(key)
+            else:
+                pyautogui.keyDown(key); time.sleep(secs); pyautogui.keyUp(key)
+        res = diagnostics.movement_test(lambda: pyautogui.screenshot(region=reg), hold)
+        admin = diagnostics.is_admin()
+        mode, adv = diagnostics.advice(res, title, admin)
+        lines = [("ok" if admin else "warn", "El bot se ejecuta como administrador." if admin else
+                  ("El bot NO se ejecuta como administrador." if admin is False else "No puedo saber si es administrador.")),
+                 ("ok" if title else "warn", f"Ventana activa: «{title}»" if title else "No puedo saber la ventana activa."),
+                 ("ok", f"Ruido de la imagen sin pulsar nada: {res['noise']:.1f}"),
+                 ("ok" if res["pyautogui"] else "warn", "Método normal: " + ("el personaje SE MOVIÓ" if res["pyautogui"] else "no se movió")),
+                 ("ok" if res["scancode"] else "warn", "Método scancode: " + ("sin soporte (solo Windows)" if res["scancode"] is None else
+                                                                          "el personaje SE MOVIÓ" if res["scancode"] else "no se movió"))]
+        events.put(("diag", lines + adv, mode))
+    except Exception as ex:  # noqa: BLE001
+        events.put(("diag", [("bad", f"Error en la prueba: {ex}")], None))
+
+
+def diag(n=None):
+    n = int(v_dsecs.get()) if n is None else n
+    if n > 0:
+        lbl_dg.config(text=f"Pon Aion en primer plano, en un sitio seguro… empiezo en {n}")
+        root.after(1000, lambda: diag(n - 1))
+        return
+    title = vision.foreground_title()
+    root.withdraw(); root.update()
+    threading.Thread(target=diag_worker, args=(title,), daemon=True).start()
+
+
+def show_diag(lines, mode):
+    root.deiconify()
+    dtext.config(state="normal"); dtext.delete("1.0", "end")
+    for lvl, txt in lines:
+        dtext.insert("end", ("✔ " if lvl == "ok" else "⚠ " if lvl == "warn" else "✖ ") + txt + "\n\n", lvl)
+    dtext.config(state="disabled")
+    if mode:
+        cfg["behavior"]["input_mode"] = mode
+        collect_safe(); save_cfg()
+    lbl_dg.config(text=f"Prueba hecha a las {time.strftime('%H:%M:%S')}")
+
+
+b_diag.config(command=diag)
+
+# ===========================================================================
 # Pestaña Vista (lo que ve el bot)
 # ===========================================================================
 tab_vi = ttk.Frame(nb)
@@ -1029,6 +1107,8 @@ def pump():
             if kind == "log":
                 log_box.config(state="normal"); log_box.insert("end", a, b or ()); log_box.see("end")
                 log_box.config(state="disabled")
+            elif kind == "diag":
+                show_diag(a, b)
             elif kind == "beep":
                 try:
                     import winsound; winsound.Beep(880, 300)

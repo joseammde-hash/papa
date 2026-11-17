@@ -145,14 +145,20 @@ class ScreenPerception:
 
 
 class Actuator:
-    def __init__(self):
+    def __init__(self, mode="pyautogui"):
         import pyautogui
+        import inputs
         pyautogui.FAILSAFE = True
         pyautogui.PAUSE = 0.02
         self.pg = pyautogui
+        self.sc = mode == "scancode" and inputs.available()     # teclas por scancode (juegos que ignoran las normales)
+        self.inputs = inputs
 
     def press(self, key):
-        if "+" in key and key != "+":      # combinaciones tipo 'shift+1'
+        combo = "+" in key and key != "+"      # combinaciones tipo 'shift+1'
+        if self.sc:
+            self.inputs.hotkey(key.split("+")) if combo else self.inputs.press(key)
+        elif combo:
             self.pg.hotkey(*key.split("+"))
         else:
             self.pg.press(key)
@@ -161,10 +167,10 @@ class Actuator:
         self.pg.click(x, y)
 
     def down(self, key):
-        self.pg.keyDown(key)
+        self.inputs.key_down(key) if self.sc else self.pg.keyDown(key)
 
     def up(self, key):
-        self.pg.keyUp(key)
+        self.inputs.key_up(key) if self.sc else self.pg.keyUp(key)
 
 
 def excluded_keys(cfg):
@@ -688,7 +694,8 @@ class BotRunner:
 
     def _loop(self):
         try:
-            brain = Brain(self.cfg, self.kn, ScreenPerception(self.cfg), Actuator(),
+            brain = Brain(self.cfg, self.kn, ScreenPerception(self.cfg),
+                          Actuator(self.cfg["behavior"].get("input_mode", "pyautogui")),
                           log=self.log, alert=self.alert, book=self.book, db=self.db,
                           routes=load_json(ROUTES_PATH, {}))
             brain.should_stop = self.stopped.is_set

@@ -1,5 +1,9 @@
 # Novedades
 
+## 1.4.0
+- Pestaña 🔧 Diagnóstico: prueba si el personaje se mueve con dos métodos de teclado y activa solo el que funciona.
+- Nuevo modo de teclas por scancode (juegos que ignoran las teclas normales).
+
 ## 1.3.0
 - Pestaña 👁 Vista: captura tu pantalla y dibuja lo que detecta el bot (barras, % leídos, nombre del objetivo, barra de habilidades con su rol).
 - Vigilancia de ventana: si Aion no está en primer plano el bot no pulsa nada (así no escribe en otra aplicación).

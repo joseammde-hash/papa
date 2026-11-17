@@ -57,6 +57,11 @@ El bot no se conecta al juego: mira la pantalla y pulsa teclas/clics en la venta
 ventana sin bordes), sin nada encima, y estar en primer plano. En *Vista* pulsa *Capturar*, pon Aion delante y verás tu pantalla con lo detectado
 dibujado encima y un informe (✔ bien, ⚠ aviso, ✖ error). Después usa *Usar esta ventana como la del juego*: así el bot deja de pulsar si Aion no está activo.
 
+## Diagnóstico: el personaje no se mueve (pestaña 🔧)
+Con Aion en primer plano y en un sitio seguro, *Probar movimiento* mantiene `W` con dos métodos (normal y por scancode), mira si la imagen cambia
+y activa el que funciona. Si ninguno mueve al personaje: ejecuta el bot como administrador (clic derecho en INICIAR.bat) si Aion va como
+administrador, usa modo ventana/sin bordes y revisa que `W` sea tu tecla de avanzar.
+
 ## Qué decide el bot
 - **Habilidades**: por prioridad (orden de la lista), respetando cooldowns, maná mínimo, apertura (una vez por combate),
   remate (objetivo ≤ X %) y defensiva (mi vida ≤ X %). Si nada está listo, ataque básico.

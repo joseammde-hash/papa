@@ -125,7 +125,8 @@
     "approach_key": "w",
     "approach_after": 5,
     "approach_seconds": 0.6,
-    "game_window": ""
+    "game_window": "",
+    "input_mode": "pyautogui"
   },
   "hotbar": {
     "region": null,
