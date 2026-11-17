@@ -135,3 +135,34 @@ class T2(unittest.TestCase):
         text = " | ".join(t for _, t in gamescan.report_lines(gamescan.inventory(game, log=lambda m: None)))
         self.assertIn("Skills.pak → legible (ZIP)", text)
         self.assertIn("Npcs.pak → cifrado", text)
+
+
+AION_NPC = """<?xml version="1.0"?><npc_clients>
+<npc_client><id>210001</id><name>wolf_a</name><desc>STR_MONSTER_WOLF2</desc><level>12</level></npc_client>
+<npc_client><id>210002</id><name>drake_boss</name><desc>STR_MONSTER_DRAKE</desc><level>30</level></npc_client></npc_clients>"""
+AION_STR = """<?xml version="1.0"?><strings>
+<string><id>1</id><name>STR_MONSTER_WOLF2</name><body>Lobo Negro</body></string>
+<string><id>2</id><name>STR_MONSTER_DRAKE</name><body>Drake Anciano</body></string></strings>"""
+
+
+class T3(unittest.TestCase):
+    def test_real_schema_desc_code_resolved_via_name_key(self):
+        game, out = Path(tempfile.mkdtemp()), Path(tempfile.mkdtemp())
+        with zipfile.ZipFile(game / "Npcs.pak", "w") as z:
+            z.writestr("client_npcs.xml", AION_NPC)
+        sd = game / "L10N" / "2_esn" / "data" / "Strings"
+        sd.mkdir(parents=True)
+        (sd / "client_strings_monster.xml").write_text(AION_STR, encoding="utf-8")
+        (game / "L10N" / "2_eng" / "data" / "Strings").mkdir(parents=True)
+        (game / "L10N" / "2_eng" / "data" / "Strings" / "client_strings_monster.xml").write_text("<x/>")
+        self.assertEqual(gamescan.extract_paks(game, out, log=lambda m: None), 1)
+        self.assertEqual(gamescan.copy_strings(game, out, "esn", log=lambda m: None), 1)        # solo el idioma elegido
+        data = gamescan.import_dir(out, Path(tempfile.mkdtemp()) / "g.json", log=lambda m: None)
+        self.assertEqual(data["monsters"], {"Lobo Negro": {"level": 12}, "Drake Anciano": {"level": 30}})
+        self.assertEqual(gamescan.encoded_count(out), (2, 0))
+
+    def test_encoded_xml_is_counted(self):
+        d = Path(tempfile.mkdtemp())
+        (d / "a.xml").write_text("<a/>")
+        (d / "b.xml").write_bytes(b"\x8f" + os.urandom(100))
+        self.assertEqual(gamescan.encoded_count(d), (1, 1))

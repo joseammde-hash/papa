@@ -22,7 +22,7 @@ BASE = Path(__file__).parent
 GAMEDATA_PATH = BASE / "game_data.json"
 KEYWORDS = ("npc", "mob", "monster", "skill", "world", "map", "quest", "string", "item", "level", "zone", "exp")
 TEXT_EXT = {".xml", ".txt", ".ini", ".cfg", ".csv", ".json", ".lua", ".html"}
-NAME_KEYS = ("name", "desc", "nameid", "name_id", "string")
+NAME_KEYS = ("desc", "name", "nameid", "name_id", "string")
 LEVEL_KEYS = ("level", "lv", "npc_level", "lvl")
 HP_KEYS = ("hp", "max_hp", "maxhp", "hp_max")
 
@@ -271,6 +271,38 @@ def extract_paks(root, out_dir, patterns=("npc", "skill", "string", "world", "it
     return count
 
 
+def copy_strings(root, out_dir, lang="eng", log=print):
+    """Copia los XML de textos (nombres de monstruos, habilidades…) de L10N\\2_<idioma>\\data\\Strings."""
+    import shutil
+    out = Path(out_dir) / f"strings_{lang}"
+    n = 0
+    for base in Path(root).glob("L10N/*"):
+        if base.name.lower() not in (lang.lower(), f"2_{lang.lower()}"):
+            continue
+        for p in base.rglob("*.xml"):
+            if "string" in p.name.lower():
+                out.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(p, out / p.name)
+                n += 1
+    log(f"{n} XML de textos ({lang}) copiados")
+    return n
+
+
+def encoded_count(folder):
+    """(legibles, codificados) entre los XML de la carpeta."""
+    ok = bad = 0
+    for p in Path(folder).rglob("*.xml"):
+        try:
+            head = p.read_bytes()[:64].lstrip(b"\xef\xbb\xbf \r\n\t")
+        except OSError:
+            continue
+        if head[:1] == b"<":
+            ok += 1
+        else:
+            bad += 1
+    return ok, bad
+
+
 # -- importar XML extraídos ------------------------------------------------------------
 def _first(attrs, keys):
     for k in keys:
@@ -288,10 +320,13 @@ def _strings(folder):
             continue
         try:
             for el in ET.parse(p).getroot().iter():
-                kid = el.findtext("id") or el.findtext("name") or el.attrib.get("id")
+                kid = el.findtext("id") or el.attrib.get("id")
+                kname = el.findtext("name") or el.attrib.get("name")
                 body = el.findtext("body") or el.attrib.get("body")
-                if kid and body:
-                    table[kid.strip().upper()] = body.strip()
+                if body:
+                    for k in (kid, kname):
+                        if k:
+                            table[k.strip().upper()] = body.strip()
         except ET.ParseError:
             continue
     return table
@@ -321,8 +356,13 @@ def import_dir(folder, out_path=GAMEDATA_PATH, log=print):
         n = 0
         for el in root.iter():
             at = el.attrib or {k: (v.text or "") for k, v in ((c.tag, c) for c in el if len(c) == 0)}
-            name = resolve(_first(at, NAME_KEYS) or el.findtext("name") or el.findtext("desc"))
-            if not name or name.upper().startswith("STR_"):
+            name = None
+            for cand in (_first(at, NAME_KEYS), el.findtext("desc"), el.findtext("name")):
+                v = resolve(cand)
+                if v and not v.upper().startswith("STR_"):
+                    name = v
+                    break
+            if not name:
                 continue
             if kind == "npc":
                 lv = _first(at, LEVEL_KEYS)

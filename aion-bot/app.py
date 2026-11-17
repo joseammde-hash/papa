@@ -768,6 +768,9 @@ ttk.Label(fc, text="Lee los ARCHIVOS de tu carpeta de Aion (solo lectura): nombr
                    "No lee la memoria del juego ni la red (eso lo detecta el anti-trampas). Con los niveles, el bot descarta monstruos "
                    "muy por debajo o por encima de tu nivel.", style="Muted.TLabel", wraplength=800).grid(row=0, column=0, columnspan=5, sticky="w")
 ttk.Entry(fc, textvariable=v_gdir, width=70).grid(row=1, column=0, columnspan=4, sticky="we", pady=8)
+v_lang = tk.StringVar(value=cfg.get("game_lang", "eng"))
+ttk.Label(fc, text="Idioma de tu juego", style="Card.TLabel").grid(row=1, column=4, padx=(10, 4))
+ttk.Combobox(fc, textvariable=v_lang, values=["eng", "esn", "fra", "deu", "ita", "plk"], width=6, state="readonly").grid(row=1, column=5)
 ftext = tk.Text(tab_fi, bg=PANEL2, fg=TEXT, relief="flat", height=16, font=("Segoe UI", 9), state="disabled",
                 highlightthickness=1, highlightbackground=LINE, wrap="word")
 for _t, _c in (("ok", OK), ("warn", "#ffd166"), ("bad", DANGER)):
@@ -836,16 +839,23 @@ def do_extract():
     d = v_gdir.get().strip()
     if not d or not Path(d).exists():
         messagebox.showinfo("Archivos", "Primero busca o elige la carpeta de Aion."); return
-    events.put(("files", [("ok", "Extrayendo XML de los .pak legibles…")], None))
+    cfg["game_lang"] = v_lang.get()
+    events.put(("files", [("ok", "Extrayendo XML de los .pak legibles y copiando los textos del idioma elegido…")], None))
 
     def fn():
         out = engine.BASE / "game_extract"
         n = gamescan.extract_paks(d, out, log=lambda m: None)
+        ns = gamescan.copy_strings(d, out, v_lang.get())
         if not n:
             events.put(("files", [("warn", "Ningún .pak se pudo abrir como ZIP (están cifrados). Extráelos con una herramienta de la "
                                            "comunidad (p. ej. AION-Encdec), y usa 'Importar carpeta de XML extraídos'.")], None)); return
+        ok_x, bad_x = gamescan.encoded_count(out)
         data = gamescan.import_dir(out, log=lambda m: None)
-        events.put(("files", [("ok", f"{n} XML extraídos."), ("ok" if data["monsters"] else "warn",
+        extra = [("ok" if ok_x else "warn", f"{ok_x} XML legibles y {bad_x} codificados" +
+                  (" (los codificados necesitan decodificarse con AION-Encdec)" if bad_x else ""))]
+        if not ns:
+            extra.append(("warn", f"No encontré textos en el idioma «{v_lang.get()}»: los nombres saldrán como códigos."))
+        events.put(("files", extra + [("ok", f"{n} XML extraídos."), ("ok" if data["monsters"] else "warn",
                     f"Importados {len(data['monsters'])} monstruos y {len(data['skills'])} habilidades "
                     f"(se usarán al iniciar el bot).")] + [("ok", f"{f['file']}: {f['records']} registros") for f in data["files"]], None))
     _run(fn)

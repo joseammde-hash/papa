@@ -1,5 +1,9 @@
 # Novedades
 
+## 1.8.1
+- Lector ajustado al formato real de tu cliente: client_npcs.xml dentro de Npcs.pak (nombres por código desc → texto) y textos de L10N\\2_<idioma>\\data\\Strings.
+- Elección del idioma del juego, y aviso de cuántos XML están legibles o codificados.
+
 ## 1.8.0
 - El escáner sondea primero los .pak con datos útiles (npcs, skills, world, textos) e indica cuáles son legibles.
 - Botón «Copiar .pak importantes a una carpeta de trabajo»: copia (no mueve) esos archivos a game_work\\PAK para extraerlos con AION-Encdec sin tocar el juego.
