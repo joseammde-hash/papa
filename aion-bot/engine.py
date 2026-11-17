@@ -12,6 +12,8 @@ from skillbook import SkillBook, analyze_hotbar
 from monsters import MonsterDB, clean_name, plan_zone, xp_gain
 from guide import load_guide, step_for
 from gamescan import GameData
+from explorer import Explorer
+from minimap import find_dots
 from pathlib import Path
 
 BASE = Path(__file__).parent
@@ -122,6 +124,20 @@ class ScreenPerception:
         except (TypeError, ValueError):
             return None
 
+    def grab_scene(self):
+        """Zona central de la pantalla (para detectar si el personaje se queda atascado)."""
+        w, h = self.pg.size()
+        return self.pg.screenshot(region=(int(w * .25), int(h * .2), int(w * .5), int(h * .5)))
+
+    def minimap_dots(self):
+        """Nº de puntos rojos (monstruos) en el minimapa; None si no está calibrado."""
+        reg = self.cfg["bars"].get("minimap_region")
+        if not reg:
+            return None
+        x1, y1, x2, y2 = reg
+        img = self.pg.screenshot(region=(x1, y1, x2 - x1, y2 - y1))
+        return len(find_dots(img, [0, 0, x2 - x1, y2 - y1]))
+
     def game_focused(self, title):
         """True/False si la ventana activa contiene 'title'; None si no se puede saber."""
         from vision import foreground_title
@@ -197,6 +213,8 @@ class Brain:
         self.should_stop = lambda: False
         self.guide = load_guide()
         self.gamedata = GameData.load()
+        self.explorer = Explorer(cfg, actuator, getattr(perception, "grab_scene", None),
+                                 getattr(perception, "minimap_dots", None), sleep, log)
         self.book = book if book is not None else SkillBook.load(LEARNED_PATH, log)
         self.sleep = sleep
         self.planner = ZonePlanner(knowledge["zones"])
@@ -480,6 +498,13 @@ class Brain:
             play_route(patrol, self.act, stop=self.should_stop)
             self.target_fails = 0
             acts.append("patrol")
+        elif self.cfg.get("explore", {}).get("enabled") and not patrol and \
+                self.target_fails >= self.cfg["explore"].get("sweep_after_fails", 2):
+            r = self.explorer.step()
+            self.target_fails = 0
+            if r != "turn":
+                self.log({"walk": "Sin objetivos: camino explorando", "stuck": "Me quedé atascado: giro para salir"}[r])
+            acts.append("explore:" + r)
         elif self.target_fails >= b["wander_after_fails"] and b.get("wander_keys"):
             k = random.choice(b["wander_keys"])
             self.act.down(k)

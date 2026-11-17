@@ -1,5 +1,10 @@
 # Novedades
 
+## 1.7.0
+- Exploración autónoma: si no hay monstruos, el personaje gira buscando (Tab), camina, detecta si se queda atascado y sale solo.
+- Minimapa (opcional): cuenta los puntos rojos para saber si hay monstruos cerca y caminar directamente si no los hay.
+- Botón «Probar vuelta completa» para calibrar el giro.
+
 ## 1.6.2
 - GUARDAR-EN-ESCRITORIO.bat y RESTAURAR-DESDE-ESCRITORIO.bat: copia de seguridad de tus datos en la carpeta «json» del Escritorio.
 

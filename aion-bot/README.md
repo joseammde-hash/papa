@@ -74,6 +74,12 @@ En *Archivos del juego*: *Buscar Aion* → *Escanear* → *Extraer .pak legibles
 de la comunidad y usa *Importar XML ya extraídos*. Con los niveles de monstruos el bot descarta los 5+ niveles por debajo (casi sin XP) o 6+ por encima (peligrosos).
 No se lee la memoria ni la red del juego: lo detecta el anti-trampas y causa bans.
 
+## Movimiento autónomo (exploración)
+Cuando no hay monstruos a la vista el personaje busca solo, sin trampas: gira en pasos de 45° pulsando Tab tras cada giro (barrido de 360°),
+camina hacia delante si no encuentra ninguno, y si la imagen no cambia mientras camina (se atascó) gira 90-180° para salir. Si calibras el *Minimapa*
+(Calibración → Minimapa), cuenta los puntos rojos: sin ninguno camina directamente; con alguno, barre primero. Ajusta «Segundos por giro de 45°» en
+🔧 Diagnóstico con *Probar vuelta completa*. Si grabas una patrulla para el punto de farmeo, se usa esa en lugar de explorar.
+
 ## Qué decide el bot
 - **Habilidades**: por prioridad (orden de la lista), respetando cooldowns, maná mínimo, apertura (una vez por combate),
   remate (objetivo ≤ X %) y defensiva (mi vida ≤ X %). Si nada está listo, ataque básico.

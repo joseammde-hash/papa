@@ -4,6 +4,7 @@ import sys
 from PIL import ImageDraw
 
 from engine import bar_fraction
+from minimap import find_dots
 from skillbook import analyze_hotbar, READY_RATIO
 
 OK, BAD, WARN = "#5be0a8", "#ff4d6d", "#ffd166"
@@ -77,6 +78,17 @@ def render_overlay(img, cfg, book=None):
         box(reg, WARN, label)
         txt = ocr_crop(img, reg, wl)
         rep.append(("ok" if txt else "warn", f"{label}: " + (f"leo «{txt}»" if txt else "no puedo leerlo (¿Tesseract instalado? ¿región bien marcada?)")))
+
+    mm = (cfg.get("bars") or {}).get("minimap_region")
+    if mm:
+        box(mm, OK, "Minimapa")
+        dots = find_dots(img, mm)
+        cx, cy = (mm[0] + mm[2]) / 2, (mm[1] + mm[3]) / 2
+        for dx, dy in dots:
+            d.ellipse([cx + dx - 4, cy + dy - 4, cx + dx + 4, cy + dy + 4], outline=BAD, width=2)
+        rep.append(("ok", f"Minimapa: veo {len(dots)} puntos rojos (monstruos cerca)"))
+    else:
+        rep.append(("warn", "Minimapa: sin marcar (opcional; permite saber si hay monstruos cerca y caminar si no los hay)"))
 
     hb = cfg.get("hotbar") or {}
     if hb.get("region"):

@@ -39,6 +39,9 @@ planner = engine.ZonePlanner(kn["zones"])
 # claves nuevas por si el config.json viene de una versión anterior
 cfg["bars"].setdefault("xp", {"region": None, "color": None, "tol": 60})
 cfg["bars"].setdefault("target_name_region", None)
+cfg["bars"].setdefault("minimap_region", None)
+cfg.setdefault("explore", {"enabled": True, "turn_keys": ["d"], "forward_key": "w", "turn_seconds": 0.45,
+                           "sweeps_per_circle": 8, "walk_seconds": [2.0, 4.0], "stuck_threshold": 3.0, "sweep_after_fails": 2})
 cfg.setdefault("monsters", {"enabled": True, "min_samples": 3, "keep_ratio": 0.6, "max_danger": 80, "max_skips": 6,
                             "auto_spot": True, "spot_check_seconds": 30, "explore_minutes": 5, "switch_ratio": 0.7})
 cfg.setdefault("spots", [])
@@ -370,7 +373,7 @@ def capture(key, label):
             else:
                 x1, y1 = pts[0]; x2, y2 = pts[1]
                 reg = [min(x1, x2), min(y1, y2), max(x1, x2), max(y1, y2)]
-                if key in ("level_region", "target_name_region"):
+                if key in ("level_region", "target_name_region", "minimap_region"):
                     cfg["bars"][key] = reg
                 elif key == "hotbar":
                     cfg["hotbar"]["region"] = reg
@@ -390,6 +393,7 @@ def capture(key, label):
 
 for i, (k, txt) in enumerate((("hp", "Mi vida"), ("mp", "Mi maná"), ("target", "Vida del objetivo"),
                        ("xp", "Experiencia (barra)"), ("target_name_region", "Nombre del objetivo (OCR)"),
+                       ("minimap_region", "Minimapa (opcional)"),
                        ("level_region", "Nivel (opcional, OCR)"))):
     ttk.Label(cc, text=txt, style="Card.TLabel", width=22).grid(row=i + 1, column=0, sticky="w", pady=4)
     ttk.Button(cc, text="Marcar", command=lambda k=k, t=txt: capture(k, t)).grid(row=i + 1, column=1, padx=8)
@@ -401,7 +405,7 @@ def refresh_cal():
     for k, lab in cal_lbl.items():
         if k == "hotbar":
             lab.config(text=f"✔ {cfg['hotbar']['region']}" if cfg["hotbar"].get("region") else "sin marcar")
-        elif k in ("level_region", "target_name_region"):
+        elif k in ("level_region", "target_name_region", "minimap_region"):
             lab.config(text="✔ marcado" if cfg["bars"].get(k) else "sin marcar (necesita Tesseract OCR)")
         else:
             b = cfg["bars"][k]
@@ -892,6 +896,44 @@ ttk.Spinbox(dc, from_=3, to=20, textvariable=v_dsecs, width=4).grid(row=1, colum
 ttk.Label(dc, text="segundos", style="Card.TLabel").grid(row=1, column=2)
 lbl_dg = ttk.Label(dc, text="", style="Muted.TLabel")
 lbl_dg.grid(row=2, column=0, columnspan=5, sticky="w")
+v_explore = tk.BooleanVar(value=cfg["explore"].get("enabled", True))
+v_turn = tk.DoubleVar(value=cfg["explore"].get("turn_seconds", 0.45))
+ec = card(tab_dg, fill="x", padx=6, pady=4)
+ttk.Checkbutton(ec, text="Explorar solo cuando no veo monstruos: girar buscando (Tab), caminar y salir si se atasca",
+                variable=v_explore).grid(row=0, column=0, columnspan=4, sticky="w")
+ttk.Label(ec, text="Segundos por giro de 45°", style="Card.TLabel").grid(row=1, column=0, sticky="w", pady=6)
+ttk.Spinbox(ec, from_=0.1, to=2.0, increment=0.05, textvariable=v_turn, width=6).grid(row=1, column=1, padx=8)
+b_turn = ttk.Button(ec, text="Probar vuelta completa")
+b_turn.grid(row=1, column=2, padx=6)
+ttk.Label(ec, text="Ajusta los segundos hasta que 8 giros den una vuelta entera (empieza en un sitio seguro).",
+          style="Muted.TLabel").grid(row=2, column=0, columnspan=4, sticky="w")
+
+
+def turn_worker():
+    try:
+        act = engine.Actuator(cfg["behavior"].get("input_mode", "pyautogui"))
+        n, secs = int(cfg["explore"].get("sweeps_per_circle", 8)), float(cfg["explore"]["turn_seconds"])
+        for _ in range(n):
+            act.down(cfg["explore"]["turn_keys"][0]); time.sleep(secs); act.up(cfg["explore"]["turn_keys"][0])
+            time.sleep(0.8)
+        events.put(("diag", [("ok", f"Hice {n} giros de {secs} s. ¿Diste una vuelta completa? Si te pasaste, baja los segundos; "
+                                    "si te quedaste corto, sube.")], None))
+    except Exception as ex:  # noqa: BLE001
+        events.put(("diag", [("bad", f"Error: {ex}")], None))
+
+
+def turn_test(n=None):
+    n = 5 if n is None else n
+    if n > 0:
+        lbl_dg.config(text=f"Pon Aion en primer plano, en un sitio seguro… giro en {n}")
+        root.after(1000, lambda: turn_test(n - 1))
+        return
+    collect_safe()
+    root.withdraw(); root.update()
+    threading.Thread(target=turn_worker, daemon=True).start()
+
+
+b_turn.config(command=turn_test)
 dtext = tk.Text(tab_dg, bg=PANEL2, fg=TEXT, relief="flat", height=14, font=("Segoe UI", 10), state="disabled",
                 highlightthickness=1, highlightbackground=LINE, wrap="word")
 dtext.pack(fill="both", expand=True, padx=6, pady=6)
@@ -1198,6 +1240,7 @@ refresh_kn()
 def collect():
     ch.update(level=int(v_level.get()), zone=v_zone.get(), gear_power=int(v_power.get()),
               auto_zone_check=v_auto.get(), pause_on_zone_change=v_pausez.get(), auto_route=v_route.get())
+    cfg["explore"].update(enabled=v_explore.get(), turn_seconds=round(float(v_turn.get()), 2))
     cfg["guide"].update(enabled=v_guide_on.get(), manual_policy=POLICIES[v_pol.get()], level_bonus=int(v_gbonus.get()))
     mc = cfg["monsters"]
     mc.update(enabled=v_mon_on.get(), keep_ratio=int(v_keep.get()) / 100, max_danger=int(v_danger.get()),

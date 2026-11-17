@@ -102,7 +102,8 @@
       "color": null,
       "tol": 60
     },
-    "target_name_region": null
+    "target_name_region": null,
+    "minimap_region": null
   },
   "behavior": {
     "rest_below": 60,
@@ -169,5 +170,20 @@
     "manual_policy": "avisar",
     "level_bonus": 0
   },
-  "game_dir": ""
+  "game_dir": "",
+  "explore": {
+    "enabled": true,
+    "turn_keys": [
+      "d"
+    ],
+    "forward_key": "w",
+    "turn_seconds": 0.45,
+    "sweeps_per_circle": 8,
+    "walk_seconds": [
+      2.0,
+      4.0
+    ],
+    "stuck_threshold": 3.0,
+    "sweep_after_fails": 2
+  }
 }
