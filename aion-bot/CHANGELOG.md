@@ -1,5 +1,8 @@
 # Novedades
 
+## 1.1.2
+- Zonas ajustadas: Beluslan 30-44, Brusthonin 45-50, Gelkmaros 51-55 y nueva zona Enshar 56-65.
+
 ## 1.1.1
 - Corregidas las zonas asmodianas: Altgard (10-19) va antes que Morheim (20-29). Zona inicial del config: Altgard.
 - Marcado que los rangos no están verificados para EUROaion 4.6.

@@ -44,6 +44,8 @@ class T(unittest.TestCase):
         self.assertEqual(p.recommend(13, 0)["name"], "Altgard")
         self.assertEqual(p.recommend(9, 2)["name"], "Altgard")    # equipo fuerte adelanta
         self.assertEqual(p.recommend(28, 2)["name"], "Beluslan")
+        self.assertEqual([p.recommend(l, 0)["name"] for l in (9, 10, 20, 30, 45, 51, 56, 65)],
+                         ["Ishalgen", "Altgard", "Morheim", "Beluslan", "Brusthonin", "Gelkmaros", "Enshar", "Enshar"])
 
     def test_potion_threshold_depends_on_gear(self):
         b, act, _ = make([Status(0.30, 1, 0)], power=0)

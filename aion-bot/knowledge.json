@@ -1,5 +1,5 @@
 {
-  "_aviso": "Zonas asmodianas escritas de memoria y contrastadas con guías antiguas; NO verificadas para la versión 4.6 de EUROaion. Comprueba en el juego (mapa / misiones) el nivel recomendado de cada zona y edita 'min' y 'max' aquí. Puedes añadir 'mobs' y 'notas'.",
+  "_aviso": "Rangos pensados para farmear (los del juego se solapan mucho). Basados en tablas y guías del Aion clásico/2.0 y en que Enshar es la zona de los niveles 56-65 antes de la 6.0; NO he encontrado una tabla oficial de la 4.6. Si ves otro nivel recomendado en el juego, edita 'min' y 'max'.",
   "faccion": "Asmodianos",
   "capital": "Pandaemonium",
   "zones": [
@@ -13,35 +13,42 @@
       "name": "Altgard",
       "min": 10,
       "max": 19,
-      "notas": "Primera zona tras la Ascensión (equivalente asmodiano de Verteron).",
+      "notas": "Primera zona tras la Ascensión (la tabla del juego la da como 10-20).",
       "mobs": []
     },
     {
       "name": "Morheim",
       "min": 20,
       "max": 29,
-      "notas": "",
+      "notas": "La tabla del juego la extiende hasta ~40-45; a partir de 30 rinde más Beluslan.",
       "mobs": []
     },
     {
       "name": "Beluslan",
       "min": 30,
-      "max": 39,
-      "notas": "",
+      "max": 44,
+      "notas": "La tabla del juego da 30-48/50.",
       "mobs": []
     },
     {
       "name": "Brusthonin",
-      "min": 40,
-      "max": 49,
+      "min": 45,
+      "max": 50,
       "notas": "",
       "mobs": []
     },
     {
       "name": "Gelkmaros",
-      "min": 50,
-      "max": 59,
-      "notas": "",
+      "min": 51,
+      "max": 55,
+      "notas": "Zona de nivel 50+.",
+      "mobs": []
+    },
+    {
+      "name": "Enshar",
+      "min": 56,
+      "max": 65,
+      "notas": "Zona de leveling de 56 al máximo (65 antes de la 6.0).",
       "mobs": []
     }
   ],
