@@ -1,5 +1,8 @@
 # Novedades
 
+## 1.1.3
+- La tabla de zonas se puede editar desde la pestaña Conocimiento (nombre, niveles, notas).
+
 ## 1.1.2
 - Zonas ajustadas: Beluslan 30-44, Brusthonin 45-50, Gelkmaros 51-55 y nueva zona Enshar 56-65.
 

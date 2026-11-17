@@ -737,11 +737,69 @@ nb.add(tab_kn, text="📜  Conocimiento")
 kv = ttk.Treeview(tab_kn, columns=("zone", "lv", "notes"), show="headings", height=10)
 for col, txt, w in (("zone", "Zona", 140), ("lv", "Nivel", 80), ("notes", "Notas", 560)):
     kv.heading(col, text=txt); kv.column(col, width=w, anchor="w")
-for z in kn["zones"]:
-    kv.insert("", "end", values=(z["name"], f"{z['min']}-{z['max']}", z.get("notas", "")))
+
+
+def refresh_kn():
+    kv.delete(*kv.get_children())
+    for i, z in enumerate(sorted(kn["zones"], key=lambda z: z["min"])):
+        kv.insert("", "end", iid=str(i), values=(z["name"], f"{z['min']}-{z['max']}", z.get("notas", "")))
+
+
 kv.pack(fill="x", padx=6, pady=6)
-ttk.Label(tab_kn, text="Los rangos están escritos de memoria. Si EUROaion usa otros, edita knowledge.json (carpeta aion-bot).",
-          foreground=MUTED).pack(anchor="w", padx=8)
+kf = card(tab_kn, fill="x", padx=6, pady=4)
+k_name, k_min, k_max, k_note = tk.StringVar(), tk.IntVar(value=1), tk.IntVar(value=10), tk.StringVar()
+for c_, (lab, var, w) in enumerate((("Zona", k_name, 16), ("Nivel mín.", k_min, 6), ("Nivel máx.", k_max, 6), ("Notas", k_note, 30))):
+    ttk.Label(kf, text=lab, style="Card.TLabel").grid(row=0, column=c_, sticky="w", padx=4)
+    ttk.Entry(kf, textvariable=var, width=w).grid(row=1, column=c_, sticky="w", padx=4)
+
+
+def kn_select(_e=None):
+    sel = kv.selection()
+    if sel:
+        z = sorted(kn["zones"], key=lambda z: z["min"])[int(sel[0])]
+        k_name.set(z["name"]); k_min.set(z["min"]); k_max.set(z["max"]); k_note.set(z.get("notas", ""))
+
+
+kv.bind("<<TreeviewSelect>>", kn_select)
+
+
+def kn_save_all():
+    kn["zones"].sort(key=lambda z: z["min"])
+    planner.zones = sorted(kn["zones"], key=lambda z: z["min"])
+    save_json(engine.KNOWLEDGE_PATH, kn)
+    refresh_kn(); refresh_rec()
+
+
+def kn_apply():
+    try:
+        z = {"name": k_name.get().strip(), "min": int(k_min.get()), "max": int(k_max.get()), "notas": k_note.get()}
+    except tk.TclError:
+        return
+    if not z["name"]:
+        return
+    old = next((x for x in kn["zones"] if x["name"].lower() == z["name"].lower()), None)
+    if old:
+        old.update(z)
+    else:
+        kn["zones"].append({**z, "mobs": []})
+    kn_save_all()
+
+
+def kn_delete():
+    sel = kv.selection()
+    if sel:
+        z = sorted(kn["zones"], key=lambda z: z["min"])[int(sel[0])]
+        kn["zones"].remove(z)
+        kn_save_all()
+
+
+ttk.Button(kf, text="Guardar / añadir", style="Accent.TButton", command=kn_apply).grid(row=1, column=4, padx=8)
+ttk.Button(kf, text="Borrar", command=kn_delete).grid(row=1, column=5)
+ttk.Label(tab_kn, wraplength=820, foreground=MUTED, text=(
+    "Las zonas y niveles de aquí mandan: el bot elige la zona según tu nivel (+ bonus de equipo). Ajústalas a lo que veas en EUROaion 4.6 "
+    "(selecciona una fila para editarla). Tras añadir o borrar zonas, reinicia la app para que aparezcan en los desplegables de otras pestañas."
+)).pack(anchor="w", padx=8, pady=6)
+refresh_kn()
 
 # ===========================================================================
 # Lógica de la ventana
