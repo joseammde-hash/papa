@@ -9,6 +9,7 @@ import time
 import random
 from dataclasses import dataclass
 from skillbook import SkillBook, analyze_hotbar
+from monsters import MonsterDB, clean_name, plan_zone, xp_gain
 from pathlib import Path
 
 BASE = Path(__file__).parent
@@ -16,6 +17,7 @@ CONFIG_PATH = BASE / "config.json"
 KNOWLEDGE_PATH = BASE / "knowledge.json"
 ROUTES_PATH = BASE / "routes.json"
 LEARNED_PATH = BASE / "skills_learned.json"
+MONSTERS_PATH = BASE / "monsters.json"
 
 
 def load_json(path, default=None):
@@ -60,6 +62,7 @@ class Status:
     thp: float | None = None     # vida del objetivo
     level: int | None = None
     slots: list | None = None    # barra de acceso rápido escaneada
+    xp: float | None = None      # barra de experiencia (0..1)
 
 
 def bar_fraction(pixels, color, tol=60):
@@ -92,21 +95,32 @@ class ScreenPerception:
         px = [img.getpixel((i, 0)) for i in range(img.width)]
         return bar_fraction(px, b["color"], b.get("tol", 60))
 
+    def _ocr(self, reg, whitelist=None, invert=False):
+        try:
+            import pytesseract
+            x1, y1, x2, y2 = reg
+            img = self.pg.screenshot(region=(x1, y1, x2 - x1, y2 - y1)).convert("L")
+            img = img.point(lambda v: (0 if v > 140 else 255) if invert else (255 if v > 140 else 0))
+            img = img.resize(((x2 - x1) * 3, (y2 - y1) * 3))
+            cfg = "--psm 7" + (f" -c tessedit_char_whitelist={whitelist}" if whitelist else "")
+            return pytesseract.image_to_string(img, config=cfg).strip()
+        except Exception:
+            return None
+
     def _level(self):
         reg = self.cfg["bars"].get("level_region")
         if not reg:
             return None
         try:
-            import pytesseract
-            x1, y1, x2, y2 = reg
-            img = self.pg.screenshot(region=(x1, y1, x2 - x1, y2 - y1)).convert("L")
-            img = img.point(lambda v: 255 if v > 150 else 0).resize(((x2 - x1) * 3, (y2 - y1) * 3))
-            txt = pytesseract.image_to_string(
-                img, config="--psm 7 -c tessedit_char_whitelist=0123456789").strip()
-            lv = int(txt)
+            lv = int(self._ocr(reg, "0123456789"))
             return lv if 1 <= lv <= 65 else None
-        except Exception:
+        except (TypeError, ValueError):
             return None
+
+    def read_name(self):
+        """Nombre del objetivo actual (OCR). None si no hay región o no se puede leer."""
+        reg = self.cfg["bars"].get("target_name_region")
+        return clean_name(self._ocr(reg)) if reg else None
 
     def _slots(self):
         hb = self.cfg.get("hotbar") or {}
@@ -117,7 +131,7 @@ class ScreenPerception:
 
     def read(self):
         return Status(self._bar("hp"), self._bar("mp"), self._bar("target"),
-                      self._level(), self._slots())
+                      self._level(), self._slots(), self._bar("xp"))
 
 
 class Actuator:
@@ -160,8 +174,10 @@ class Brain:
 
     def __init__(self, cfg, knowledge, perception, actuator,
                  clock=time.time, log=print, alert=None, routes=None, sleep=time.sleep,
-                 book=None):
+                 book=None, db=None):
         self.cfg, self.perc, self.act = cfg, perception, actuator
+        self.db = db if db is not None else MonsterDB.load(MONSTERS_PATH)
+        self.should_stop = lambda: False
         self.book = book if book is not None else SkillBook.load(LEARNED_PATH, log)
         self.sleep = sleep
         self.planner = ZonePlanner(knowledge["zones"])
@@ -193,6 +209,14 @@ class Brain:
         self.last_status = Status()
         self.pending_obs = []
         self.explored = 0
+        self.fight = None
+        self.pending_name = None
+        self.xp_idle = None
+        self.skip_streak = 0
+        self.last_tick = None
+        self.last_spot_check = 0
+        self.last_approach = 0
+        self.warned_routes = set()
 
     # -- utilidades -------------------------------------------------------
     @property
@@ -223,6 +247,8 @@ class Brain:
                 self._ready("pot_hp", pots["hp"]["cooldown"], now):
             self._use("pot_hp", pots["hp"]["key"], now)
             self.log(f"Poción de vida (vida {s.hp:.0%})")
+            if self.fight:
+                self.fight["potions"] += 1
             acts.append("potion_hp")
         if s.mp is not None and s.mp < mp_below and \
                 self._ready("pot_mp", pots["mp"]["cooldown"], now):
@@ -257,11 +283,24 @@ class Brain:
             self.last_progress = now
             self.last_thp = s.thp if s.thp is not None else 1.0
             self.explored = 0
-            self.log("Combate iniciado")
+            self.fight = {"name": self.pending_name, "xp0": self.xp_idle, "hp0": s.hp, "t0": now,
+                          "potions": 0, "minhp": s.hp if s.hp is not None else 1.0}
+            self.log("Combate iniciado" + (f" contra {self.pending_name}" if self.pending_name else ""))
         if s.thp is not None:
             if s.thp < self.last_thp - 0.005:
                 self.last_progress = now
             self.last_thp = s.thp
+        if self.fight and s.hp is not None:
+            self.fight["minhp"] = min(self.fight["minhp"], s.hp)
+        bh = self.cfg["behavior"]
+        if bh.get("approach_key") and s.thp is not None and \
+                now - self.last_progress > bh.get("approach_after", 5) and now - self.last_approach > 3:
+            self.last_approach = now
+            self.act.down(bh["approach_key"])
+            self.sleep(bh.get("approach_seconds", 0.6))
+            self.act.up(bh["approach_key"])
+            self.log("Sin daño al objetivo: me acerco")
+            acts.append("approach")
         if now - self.last_progress > self.cfg["behavior"]["stuck_seconds"]:
             self.log("Objetivo atascado/inalcanzable: lo descarto")
             self.act.press(self.cfg["keys"]["esc"])
@@ -336,6 +375,7 @@ class Brain:
 
     def _end_fight(self, now):
         self._finish_due_obs(Status(self.last_status.hp, self.last_status.mp, 0.0), now, force=True)
+        self._record_fight(now)
         self.in_combat = False
         self.kills += 1
         self.last_kill_time = now
@@ -373,7 +413,7 @@ class Brain:
         if level and level != ch["level"]:
             self.log(f"¡Nivel {level}!")
             ch["level"] = level
-        rec = self.planner.recommend(ch["level"], self.power)
+        rec = plan_zone(self.cfg, self.planner, ch["level"], self.power)
         if rec["name"] != ch["zone"] and rec["name"] != self.notified_zone:
             self.notified_zone = rec["name"]
             self._alert(f"Con nivel {ch['level']} y tu equipo, la zona ideal es "
@@ -381,8 +421,9 @@ class Brain:
             key = f"{ch['zone']}->{rec['name']}"
             if ch.get("auto_route") and key in self.routes:
                 self.log(f"Ejecutando ruta {key}")
-                play_route(self.routes[key], self.act)
+                play_route(self.routes[key], self.act, stop=self.should_stop)
                 ch["zone"] = rec["name"]
+                ch["spot"] = ""
             elif ch.get("pause_on_zone_change", True):
                 self.request_pause = True
 
@@ -394,7 +435,13 @@ class Brain:
         self.act.press(self.cfg["keys"]["target"])
         self.target_fails += 1
         acts = ["target"]
-        if self.target_fails >= b["wander_after_fails"] and b.get("wander_keys"):
+        patrol = self.routes.get("patrol:" + str(self.cfg["character"].get("spot", "")))
+        if self.target_fails >= b["wander_after_fails"] and patrol:
+            self.log("Sin objetivos cerca: patrullo el punto de farmeo")
+            play_route(patrol, self.act, stop=self.should_stop)
+            self.target_fails = 0
+            acts.append("patrol")
+        elif self.target_fails >= b["wander_after_fails"] and b.get("wander_keys"):
             k = random.choice(b["wander_keys"])
             self.act.down(k)
             self.sleep(b["wander_seconds"])
@@ -408,6 +455,69 @@ class Brain:
             if b.get("pause_on_idle", True):
                 self.request_pause = True
         return acts
+
+    # -- analizador de monstruos y puntos de farmeo ------------------------
+    def _monster_policy(self, now):
+        """Al seleccionar objetivo: lee su nombre y descarta los poco rentables o peligrosos."""
+        mc = self.cfg.get("monsters", {})
+        self.pending_name = None
+        if not mc.get("enabled", True):
+            return None
+        reader = getattr(self.perc, "read_name", None)
+        name = reader() if reader else None
+        self.pending_name = name
+        if name and not self.db.should_fight(name, min_samples=mc.get("min_samples", 3),
+                                             keep_ratio=mc.get("keep_ratio", 0.6),
+                                             max_danger=mc.get("max_danger", 80)) \
+                and self.skip_streak < mc.get("max_skips", 6):
+            self.skip_streak += 1
+            self.act.press(self.cfg["keys"]["esc"])
+            self.last_target_try = now
+            self.log(f"Descarto {name}: poca experiencia o demasiado peligroso")
+            return "skip:" + name
+        self.skip_streak = 0
+        return None
+
+    def _record_fight(self, now):
+        f, self.fight = self.fight, None
+        if not f:
+            return
+        st = self.last_status
+        gain = xp_gain(f["xp0"], st.xp)
+        xp_pts = None if gain is None else gain * 100
+        hp_lost = 0.0 if f["hp0"] is None else max(0.0, (f["hp0"] - f["minhp"]) * 100)
+        self.db.record_kill(f["name"], xp_pts, now - f["t0"], hp_lost, f["potions"])
+        self.db.add_spot_kill(self.cfg["character"].get("spot", ""), xp_pts)
+        if st.xp is not None:
+            self.xp_idle = st.xp
+        if xp_pts is not None:
+            self.log(f"+{xp_pts:.2f}% XP" + (f" ({f['name']})" if f["name"] else ""))
+
+    def _check_spot(self, now):
+        mc = self.cfg.get("monsters", {})
+        ch = self.cfg["character"]
+        if not mc.get("auto_spot", True) or self.in_combat or \
+                now - self.last_spot_check < mc.get("spot_check_seconds", 30):
+            return
+        self.last_spot_check = now
+        cands = [sp["name"] for sp in self.cfg.get("spots", []) if sp.get("zone") == ch["zone"]]
+        if not cands:
+            return
+        cur = ch.get("spot", "")
+        target = self.db.best_spot(cands, cur if cur in cands else "",
+                                   mc.get("explore_minutes", 5), mc.get("switch_ratio", 0.7))
+        if target == cur:
+            return
+        key = f"{cur or ch['zone']}->{target}"
+        if key in self.routes:
+            self.log(f"Voy al punto de farmeo {target} ({key})")
+            play_route(self.routes[key], self.act, stop=self.should_stop)
+        elif cur and key not in self.warned_routes:
+            self.warned_routes.add(key)
+            self._alert(f"Quiero ir a {target} pero falta la ruta {key}: grábala en 'Zonas y rutas'.")
+            return
+        ch["spot"] = target
+        self.db.dirty = True
 
     # -- bucle ------------------------------------------------------------
     def tick(self):
@@ -426,9 +536,16 @@ class Brain:
         else:
             self.dead_ticks = 0
 
+        dt = min(2.0, now - self.last_tick) if self.last_tick else 0.0
+        self.last_tick = now
+        self.db.add_spot_time(self.cfg["character"].get("spot", ""), dt)
+        if not self.in_combat and s.xp is not None:
+            self.xp_idle = s.xp
+
         acts = self._potions(s, now)
         self._scan_hotbar(s, now)
         self._check_zone(now, s.level)
+        self._check_spot(now)
 
         has_target = (s.thp is not None and s.thp > 0.02) or \
                      (s.thp is None and now < self.blind_until)
@@ -441,6 +558,10 @@ class Brain:
             return acts
         self.lost_ticks = 0
 
+        if has_target and not self.in_combat:
+            skip = self._monster_policy(now)
+            if skip:
+                return acts + [skip]
         if has_target:
             return acts + self._fight(s, now)
 
@@ -507,9 +628,9 @@ def record_route(stop_key="f9", max_seconds=300):
 # Ejecución en segundo plano con pausa/parada
 # --------------------------------------------------------------------------
 class BotRunner:
-    def __init__(self, cfg, knowledge, log=print, on_status=lambda b: None, alert=None, book=None):
+    def __init__(self, cfg, knowledge, log=print, on_status=lambda b: None, alert=None, book=None, db=None):
         self.cfg, self.kn, self.log = cfg, knowledge, log
-        self.book = book
+        self.book, self.db = book, db
         self.on_status, self.alert = on_status, alert
         self.paused = False
         self.stopped = threading.Event()
@@ -530,8 +651,9 @@ class BotRunner:
     def _loop(self):
         try:
             brain = Brain(self.cfg, self.kn, ScreenPerception(self.cfg), Actuator(),
-                          log=self.log, alert=self.alert, book=self.book,
+                          log=self.log, alert=self.alert, book=self.book, db=self.db,
                           routes=load_json(ROUTES_PATH, {}))
+            brain.should_stop = self.stopped.is_set
             last_save = time.time()
             self.log("Empezando en 5 s: pon la ventana de Aion en primer plano.")
             for _ in range(50):
@@ -549,8 +671,11 @@ class BotRunner:
                 if not self.paused:
                     brain.tick()
                 self.on_status(brain)
-                if brain.book.dirty and time.time() - last_save > 20:
-                    brain.book.save(LEARNED_PATH)
+                if time.time() - last_save > 20:
+                    if brain.book.dirty:
+                        brain.book.save(LEARNED_PATH)
+                    if brain.db.dirty:
+                        brain.db.save(MONSTERS_PATH)
                     last_save = time.time()
                 time.sleep(0.25)
         except Exception as e:  # noqa: BLE001
@@ -559,6 +684,8 @@ class BotRunner:
             try:
                 if self.book is not None:
                     self.book.save(LEARNED_PATH)
+                if self.db is not None:
+                    self.db.save(MONSTERS_PATH)
             except OSError:
                 pass
             self.log("Bot detenido.")

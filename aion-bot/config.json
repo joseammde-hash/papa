@@ -9,7 +9,8 @@
     "gear_power": 2,
     "auto_zone_check": true,
     "pause_on_zone_change": true,
-    "auto_route": false
+    "auto_route": false,
+    "spot": ""
   },
   "keys": {
     "target": "tab",
@@ -95,7 +96,13 @@
       "color": null,
       "tol": 60
     },
-    "level_region": null
+    "level_region": null,
+    "xp": {
+      "region": null,
+      "color": null,
+      "tol": 60
+    },
+    "target_name_region": null
   },
   "behavior": {
     "rest_below": 60,
@@ -114,7 +121,10 @@
     "blind_fight_seconds": 12,
     "dead_ticks": 12,
     "zone_check_seconds": 60,
-    "max_runtime_minutes": 480
+    "max_runtime_minutes": 480,
+    "approach_key": "w",
+    "approach_after": 5,
+    "approach_seconds": 0.6
   },
   "hotbar": {
     "region": null,
@@ -135,5 +145,18 @@
     "explore_min_hp": 60,
     "observe_seconds": 2.0,
     "after_delay": 1.2
-  }
+  },
+  "monsters": {
+    "enabled": true,
+    "min_samples": 3,
+    "keep_ratio": 0.6,
+    "max_danger": 80,
+    "max_skips": 6,
+    "auto_spot": true,
+    "spot_check_seconds": 30,
+    "explore_minutes": 5,
+    "switch_ratio": 0.7
+  },
+  "spots": [],
+  "farm_plan": []
 }

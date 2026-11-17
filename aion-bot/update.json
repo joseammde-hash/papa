@@ -1,0 +1,9 @@
+{
+  "_comentario": "Dónde busca el launcher las actualizaciones. Si el repositorio es privado, pon un token de solo lectura en 'token' o en la variable de entorno GITHUB_TOKEN. Si la rama deja de existir, cambia 'branch' (p. ej. a 'main').",
+  "repo": "joseammde-hash/papa",
+  "branch": "claude/nice-brahmagupta-5dfcf1",
+  "subdir": "aion-bot",
+  "token": "",
+  "token_env": "GITHUB_TOKEN",
+  "check_on_start": true
+}

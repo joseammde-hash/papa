@@ -13,6 +13,8 @@ from tkinter import messagebox, ttk
 import engine
 from engine import BotRunner, load_json, save_json
 from skillbook import SkillBook
+from monsters import MonsterDB
+import updater
 
 # --- Paleta asmodiana ------------------------------------------------------
 BG, PANEL, PANEL2 = "#09050f", "#130b21", "#1c1031"
@@ -25,6 +27,16 @@ BODY = ("Segoe UI", 10)
 cfg = load_json(engine.CONFIG_PATH)
 kn = load_json(engine.KNOWLEDGE_PATH)
 planner = engine.ZonePlanner(kn["zones"])
+# claves nuevas por si el config.json viene de una versión anterior
+cfg["bars"].setdefault("xp", {"region": None, "color": None, "tol": 60})
+cfg["bars"].setdefault("target_name_region", None)
+cfg.setdefault("monsters", {"enabled": True, "min_samples": 3, "keep_ratio": 0.6, "max_danger": 80, "max_skips": 6,
+                            "auto_spot": True, "spot_check_seconds": 30, "explore_minutes": 5, "switch_ratio": 0.7})
+cfg.setdefault("spots", [])
+cfg.setdefault("farm_plan", [])
+cfg["character"].setdefault("spot", "")
+cfg["behavior"].setdefault("approach_key", "w")
+db = MonsterDB.load(engine.MONSTERS_PATH)
 runner = None
 events = queue.Queue()
 
@@ -83,7 +95,7 @@ def draw_header(_e=None):
                (x0 + sx * 90, 62), (x0 + sx * 40, 50)]
         hdr.create_polygon(pts, fill="#1f1245", outline=ACCENT, width=1)
     hdr.create_text(w // 2, 30, text="ASMODIANOS", fill=ACCENT2, font=TITLE_FONT)
-    hdr.create_text(w // 2, 58, text="EUROaion  ·  Ranger  ·  Daeva de Pandaemonium",
+    hdr.create_text(w // 2, 58, text=f"EUROaion  ·  Ranger  ·  Daeva de Pandaemonium  ·  v{updater.local_version()}",
                     fill=MUTED, font=("Segoe UI", 9))
     hdr.create_text(16, 12, text=RUNES, fill=ACCENT, anchor="w", font=("Segoe UI", 11))
     hdr.create_text(w - 16, 12, text=RUNES, fill=ACCENT, anchor="e", font=("Segoe UI", 11))
@@ -336,12 +348,14 @@ def capture(key, label):
             else:
                 x1, y1 = pts[0]; x2, y2 = pts[1]
                 reg = [min(x1, x2), min(y1, y2), max(x1, x2), max(y1, y2)]
-                if key == "level_region":
-                    cfg["bars"]["level_region"] = reg
+                if key in ("level_region", "target_name_region"):
+                    cfg["bars"][key] = reg
                 elif key == "hotbar":
                     cfg["hotbar"]["region"] = reg
                 else:
-                    px = pyautogui.screenshot(region=(reg[0] + 2, (reg[1] + reg[3]) // 2, 1, 1)).getpixel((0, 0))
+                    row = pyautogui.screenshot(region=(reg[0], (reg[1] + reg[3]) // 2, max(1, reg[2] - reg[0]), 1))
+                    # color de relleno = el píxel más saturado de la fila (vale aunque la barra no esté llena)
+                    px = max((row.getpixel((i, 0)) for i in range(row.width)), key=lambda p: max(p[:3]) - min(p[:3]))
                     cfg["bars"][key]["region"] = reg; cfg["bars"][key]["color"] = list(px[:3])
                 refresh_cal()
             return
@@ -352,7 +366,9 @@ def capture(key, label):
     step(3)
 
 
-for i, (k, txt) in enumerate((("hp", "Mi vida"), ("mp", "Mi maná"), ("target", "Vida del objetivo"), ("level_region", "Nivel (opcional, OCR)"))):
+for i, (k, txt) in enumerate((("hp", "Mi vida"), ("mp", "Mi maná"), ("target", "Vida del objetivo"),
+                       ("xp", "Experiencia (barra)"), ("target_name_region", "Nombre del objetivo (OCR)"),
+                       ("level_region", "Nivel (opcional, OCR)"))):
     ttk.Label(cc, text=txt, style="Card.TLabel", width=22).grid(row=i + 1, column=0, sticky="w", pady=4)
     ttk.Button(cc, text="Marcar", command=lambda k=k, t=txt: capture(k, t)).grid(row=i + 1, column=1, padx=8)
     cal_lbl[k] = ttk.Label(cc, text="", style="Muted.TLabel")
@@ -363,8 +379,8 @@ def refresh_cal():
     for k, lab in cal_lbl.items():
         if k == "hotbar":
             lab.config(text=f"✔ {cfg['hotbar']['region']}" if cfg["hotbar"].get("region") else "sin marcar")
-        elif k == "level_region":
-            lab.config(text="✔ marcado" if cfg["bars"].get("level_region") else "sin marcar (usa el nivel manual)")
+        elif k in ("level_region", "target_name_region"):
+            lab.config(text="✔ marcado" if cfg["bars"].get(k) else "sin marcar (necesita Tesseract OCR)")
         else:
             b = cfg["bars"][k]
             lab.config(text=f"✔ {b['region']} color {tuple(b['color'])}" if b.get("region") else "sin marcar")
@@ -377,13 +393,13 @@ def live_test():
     def go(n):
         s = perc.read()
         msg = lambda v: "—" if v is None else f"{v:.0%}"
-        log(f"Lectura: vida {msg(s.hp)} · maná {msg(s.mp)} · objetivo {msg(s.thp)} · nivel {s.level or '—'}")
+        log(f"Lectura: vida {msg(s.hp)} · maná {msg(s.mp)} · objetivo {msg(s.thp)} · nivel {s.level or '—'} · xp {msg(s.xp)} · nombre {perc.read_name() or '—'}")
         if n > 0:
             root.after(700, lambda: go(n - 1))
     go(6)
 
 
-ttk.Button(cc, text="Probar lectura (6 s, mira la pestaña Batalla)", command=live_test).grid(row=6, column=0, columnspan=3, sticky="w", pady=(14, 0))
+ttk.Button(cc, text="Probar lectura (6 s, mira la pestaña Batalla)", command=live_test).grid(row=8, column=0, columnspan=3, sticky="w", pady=(14, 0))
 
 # ===========================================================================
 # Pestaña Auto-habilidades
@@ -499,10 +515,70 @@ ttk.Label(tab_au, wraplength=820, foreground=MUTED, text=(
     "No toca las teclas de pociones ni de tu rotación manual (salvo en modo automático).")).pack(anchor="w", padx=8)
 
 # ===========================================================================
+# Pestaña Monstruos
+# ===========================================================================
+tab_mo = ttk.Frame(nb)
+nb.add(tab_mo, text="🐺  Monstruos")
+mc_ = card(tab_mo, fill="x", padx=6, pady=6)
+v_mon_on = tk.BooleanVar(value=cfg["monsters"].get("enabled", True))
+v_autospot = tk.BooleanVar(value=cfg["monsters"].get("auto_spot", True))
+v_keep = tk.IntVar(value=int(cfg["monsters"].get("keep_ratio", 0.6) * 100))
+v_danger = tk.IntVar(value=int(cfg["monsters"].get("max_danger", 80)))
+ttk.Checkbutton(mc_, text="Analizar monstruos y descartar los poco rentables o peligrosos", variable=v_mon_on).grid(row=0, column=0, columnspan=4, sticky="w")
+ttk.Checkbutton(mc_, text="Elegir solo el mejor punto de farmeo de la zona (por XP/min)", variable=v_autospot).grid(row=1, column=0, columnspan=4, sticky="w")
+ttk.Label(mc_, text="Descartar si rinde menos del", style="Card.TLabel").grid(row=2, column=0, sticky="w", pady=4)
+ttk.Spinbox(mc_, from_=10, to=100, textvariable=v_keep, width=5).grid(row=2, column=1)
+ttk.Label(mc_, text="% del mejor      Descartar si me quita más del", style="Card.TLabel").grid(row=2, column=2)
+ttk.Spinbox(mc_, from_=20, to=100, textvariable=v_danger, width=5).grid(row=2, column=3)
+ttk.Label(mc_, text="% de vida", style="Card.TLabel").grid(row=2, column=4, padx=4)
+mv = ttk.Treeview(tab_mo, columns=("name", "n", "xp", "ttk", "hp", "score", "st", "pref"), show="headings", height=9)
+for col, txt, w in (("name", "Monstruo", 170), ("n", "Muertes", 70), ("xp", "XP % / muerte", 100), ("ttk", "Tiempo (s)", 80),
+                    ("hp", "Vida perdida %", 100), ("score", "XP % / min", 90), ("st", "Decisión", 90), ("pref", "Tu regla", 80)):
+    mv.heading(col, text=txt); mv.column(col, width=w, anchor="w" if col == "name" else "center")
+mv.pack(fill="x", padx=6, pady=4)
+ST_TXT = {"learn": "aprendiendo", "farm": "farmear", "avoid": "evitar"}
+
+
+def refresh_monsters():
+    sel = mv.selection()
+    mv.delete(*mv.get_children())
+    mcfg = cfg["monsters"]
+    rows = sorted(db.monsters.items(), key=lambda kv: -db.score(kv[1]))
+    for name, m in rows:
+        st_ = db.status(name, mcfg.get("min_samples", 3), mcfg.get("keep_ratio", 0.6), mcfg.get("max_danger", 80))
+        mv.insert("", "end", iid=name, values=(name, m["n"], f"{m['xp']:.2f}", f"{m['ttk']:.0f}", f"{m['hp_lost']:.0f}",
+                  f"{db.score(m):.2f}", ST_TXT[st_], {"auto": "auto", "farm": "farmear", "avoid": "evitar"}[m["pref"]]))
+    if sel and mv.exists(sel[0]):
+        mv.selection_set(sel[0])
+
+
+def set_pref(p):
+    for iid in mv.selection():
+        db.monsters[iid]["pref"] = p
+    db.dirty = True; refresh_monsters()
+
+
+def forget_monsters():
+    if messagebox.askyesno("Olvidar", "¿Borrar todo lo aprendido de monstruos y puntos de farmeo?"):
+        db.forget(); refresh_monsters(); refresh_spots()
+
+
+mb = ttk.Frame(tab_mo); mb.pack(fill="x", padx=6)
+for txt, p in (("Farmear siempre", "farm"), ("Evitar siempre", "avoid"), ("Automático", "auto")):
+    ttk.Button(mb, text=txt, command=lambda p=p: set_pref(p)).pack(side="left", padx=(0, 6))
+ttk.Button(mb, text="Olvidar todo", command=forget_monsters).pack(side="left", padx=(14, 0))
+ttk.Label(tab_mo, wraplength=820, foreground=MUTED, text=(
+    "Cómo funciona: tras cada muerte el bot mide cuánta barra de experiencia has ganado, cuánto tardó y cuánta vida te costó. "
+    "Con eso calcula la rentabilidad (XP por minuto) de cada monstruo. Los primeros 3 de cada tipo los pelea para aprender; "
+    "después evita los que rinden menos del porcentaje que indiques respecto al mejor, o te quitan demasiada vida. "
+    "Necesita calibrar la barra de experiencia y la región del nombre del objetivo (lectura por OCR: instala Tesseract). "
+    "Sin el nombre no puede distinguir monstruos, pero sí mide los puntos de farmeo.")).pack(anchor="w", padx=8, pady=6)
+
+# ===========================================================================
 # Pestaña Rutas
 # ===========================================================================
 tab_rt = ttk.Frame(nb)
-nb.add(tab_rt, text="🗺  Rutas")
+nb.add(tab_rt, text="🗺  Zonas y rutas")
 rc = card(tab_rt, fill="x", padx=6, pady=6)
 ttk.Label(rc, text="Graba cómo ir de una zona a otra (teclas de movimiento) y el bot la repetirá cuando toque cambiar de zona. "
                    "Para grabar: pulsa 'Grabar', ve al juego, haz el recorrido y pulsa F9 para terminar.",
@@ -510,9 +586,11 @@ ttk.Label(rc, text="Graba cómo ir de una zona a otra (teclas de movimiento) y e
 zn = [z["name"] for z in kn["zones"]]
 rf, rt_ = tk.StringVar(value=zn[0]), tk.StringVar(value=zn[1])
 row = ttk.Frame(rc, style="Card.TFrame"); row.pack(anchor="w", pady=10)
-ttk.Combobox(row, textvariable=rf, values=zn, width=12, state="readonly").pack(side="left")
+cb_from = ttk.Combobox(row, textvariable=rf, values=zn, width=18)
+cb_from.pack(side="left")
 ttk.Label(row, text="  →  ", style="Card.TLabel").pack(side="left")
-ttk.Combobox(row, textvariable=rt_, values=zn, width=12, state="readonly").pack(side="left")
+cb_to = ttk.Combobox(row, textvariable=rt_, values=zn, width=18)
+cb_to.pack(side="left")
 
 
 def do_record():
@@ -539,6 +617,118 @@ def do_play():
 ttk.Button(row, text="● Grabar", command=do_record).pack(side="left", padx=(14, 6))
 ttk.Button(row, text="▶ Probar", command=do_play).pack(side="left")
 
+# ---- Puntos de farmeo y plan (en la misma pestaña) ---------------------------
+sp_card = card(tab_rt, fill="x", padx=6, pady=6)
+ttk.Label(sp_card, text="Puntos de farmeo: sitios concretos de una zona (un claro con monstruos). Graba una PATRULLA para cada uno "
+                        "(un recorrido corto que se repite cuando no hay enemigos) y rutas entre ellos arriba (origen → destino). "
+                        "El bot mide la XP/min de cada punto y se queda en el mejor.",
+          style="Muted.TLabel", wraplength=780).pack(anchor="w")
+spv = ttk.Treeview(sp_card, columns=("name", "zone", "rate", "min", "kills", "here"), show="headings", height=4)
+for col, txt, w in (("name", "Punto", 180), ("zone", "Zona", 110), ("rate", "XP % / min", 90), ("min", "Minutos", 70),
+                    ("kills", "Muertes", 70), ("here", "Estoy aquí", 80)):
+    spv.heading(col, text=txt); spv.column(col, width=w, anchor="w" if col == "name" else "center")
+spv.pack(fill="x", pady=6)
+v_sp_name, v_sp_zone = tk.StringVar(), tk.StringVar(value=zn[0])
+spr = ttk.Frame(sp_card, style="Card.TFrame"); spr.pack(anchor="w")
+ttk.Entry(spr, textvariable=v_sp_name, width=22).pack(side="left")
+ttk.Combobox(spr, textvariable=v_sp_zone, values=zn, width=12, state="readonly").pack(side="left", padx=6)
+
+
+def route_values():
+    vals = zn + [sp["name"] for sp in cfg["spots"]]
+    cb_from.config(values=vals); cb_to.config(values=vals)
+
+
+def refresh_spots():
+    sel = spv.selection()
+    spv.delete(*spv.get_children())
+    for sp in cfg["spots"]:
+        st_ = db.spots.get(sp["name"], {})
+        rate = db.spot_rate(sp["name"])
+        spv.insert("", "end", iid=sp["name"], values=(sp["name"], sp["zone"], f"{rate:.2f}" if rate else "—",
+                   f"{st_.get('seconds', 0) / 60:.0f}", st_.get("kills", 0), "●" if cfg["character"].get("spot") == sp["name"] else ""))
+    if sel and spv.exists(sel[0]):
+        spv.selection_set(sel[0])
+    route_values()
+
+
+def add_spot():
+    n = v_sp_name.get().strip()
+    if n and not any(sp["name"] == n for sp in cfg["spots"]):
+        cfg["spots"].append({"name": n, "zone": v_sp_zone.get()}); refresh_spots()
+
+
+def del_spot():
+    for iid in spv.selection():
+        cfg["spots"][:] = [sp for sp in cfg["spots"] if sp["name"] != iid]
+    refresh_spots()
+
+
+def here_spot():
+    for iid in spv.selection():
+        cfg["character"]["spot"] = iid
+        sp = next(sp for sp in cfg["spots"] if sp["name"] == iid)
+        cfg["character"]["zone"] = sp["zone"]; v_zone.set(sp["zone"])
+    refresh_spots()
+
+
+def record_patrol():
+    for iid in spv.selection():
+        rf.set("patrol:" + iid); rt_.set("")
+        name = "patrol:" + iid
+        log(f"Grabando patrulla {iid}… pulsa F9 para terminar")
+
+        def work(name=name):
+            steps = engine.record_route()
+            routes = load_json(engine.ROUTES_PATH, {}); routes[name] = steps
+            save_json(engine.ROUTES_PATH, routes)
+            log(f"Patrulla {name} guardada ({len(steps)} pulsaciones)")
+        threading.Thread(target=work, daemon=True).start()
+
+
+ttk.Button(spr, text="Añadir", command=add_spot).pack(side="left")
+ttk.Button(spr, text="Borrar", command=del_spot).pack(side="left", padx=6)
+ttk.Button(spr, text="Estoy aquí", command=here_spot).pack(side="left")
+ttk.Button(spr, text="● Grabar patrulla", command=record_patrol).pack(side="left", padx=6)
+
+pl_card = card(tab_rt, fill="x", padx=6, pady=6)
+ttk.Label(pl_card, text="Plan de farmeo (opcional): a partir de qué nivel (contando el bonus de equipo) debe ir a cada zona. "
+                        "Vacío = usa la tabla de la pestaña Conocimiento.", style="Muted.TLabel", wraplength=780).pack(anchor="w")
+plv = ttk.Treeview(pl_card, columns=("lv", "zone"), show="headings", height=3)
+plv.heading("lv", text="Desde nivel"); plv.heading("zone", text="Zona")
+plv.column("lv", width=100, anchor="center"); plv.column("zone", width=160, anchor="w")
+plv.pack(anchor="w", pady=6)
+v_pl_lv, v_pl_zone = tk.IntVar(value=10), tk.StringVar(value=zn[1])
+plr = ttk.Frame(pl_card, style="Card.TFrame"); plr.pack(anchor="w")
+ttk.Spinbox(plr, from_=1, to=65, textvariable=v_pl_lv, width=5).pack(side="left")
+ttk.Combobox(plr, textvariable=v_pl_zone, values=zn, width=12, state="readonly").pack(side="left", padx=6)
+
+
+def refresh_plan():
+    plv.delete(*plv.get_children())
+    for i, p in enumerate(sorted(cfg["farm_plan"], key=lambda p: p["from_level"])):
+        plv.insert("", "end", iid=str(i), values=(p["from_level"], p["zone"]))
+
+
+def add_plan():
+    try:
+        cfg["farm_plan"].append({"from_level": int(v_pl_lv.get()), "zone": v_pl_zone.get()})
+    except tk.TclError:
+        return
+    refresh_plan()
+
+
+def del_plan():
+    srt = sorted(cfg["farm_plan"], key=lambda p: p["from_level"])
+    for iid in plv.selection():
+        srt[int(iid)] = None
+    cfg["farm_plan"][:] = [p for p in srt if p]
+    refresh_plan()
+
+
+ttk.Button(plr, text="Añadir", command=add_plan).pack(side="left")
+ttk.Button(plr, text="Borrar", command=del_plan).pack(side="left", padx=6)
+
 # ===========================================================================
 # Pestaña Conocimiento
 # ===========================================================================
@@ -561,6 +751,9 @@ ttk.Label(tab_kn, text="Los rangos están escritos de memoria. Si EUROaion usa o
 def collect():
     ch.update(level=int(v_level.get()), zone=v_zone.get(), gear_power=int(v_power.get()),
               auto_zone_check=v_auto.get(), pause_on_zone_change=v_pausez.get(), auto_route=v_route.get())
+    mc = cfg["monsters"]
+    mc.update(enabled=v_mon_on.get(), keep_ratio=int(v_keep.get()) / 100, max_danger=int(v_danger.get()),
+              auto_spot=v_autospot.get())
     hb, ac = cfg["hotbar"], cfg["auto_skills"]
     hb.update(cols=int(v_cols.get()), rows=int(v_rows.get()),
               keys=[k.strip() for k in v_keys.get().split(",")],
@@ -588,7 +781,7 @@ def start():
     if miss and not messagebox.askyesno("Sin calibrar", "Faltan barras por calibrar (vida / objetivo). Sin ellas el bot "
                                         "funciona a ciegas y es mucho menos fiable. ¿Continuar?"):
         return
-    runner = BotRunner(cfg, kn, log=log, on_status=on_status, alert=alert, book=book)
+    runner = BotRunner(cfg, kn, log=log, on_status=on_status, alert=alert, book=book, db=db)
     runner.start()
     start_hotkeys()
 
@@ -641,7 +834,7 @@ def pump():
                     pb, lab = bars[k]
                     pb["value"] = (v or 0) * 100; lab.config(text="—" if v is None else f"{v:.0%}")
                 lbl_kills.config(text=f"{a.kills} kills"); lbl_kph.config(text=f"{a.kills_per_hour():.0f} / hora")
-                lbl_zone.config(text=f"Zona: {cfg['character']['zone']}  ·  Nivel {cfg['character']['level']}")
+                lbl_zone.config(text=f"Zona: {cfg['character']['zone']}  ·  Punto: {cfg['character'].get('spot') or '—'}  ·  Nivel {cfg['character']['level']}")
                 try:
                     if cfg["character"]["level"] != v_level.get():
                         v_level.set(cfg["character"]["level"])
@@ -658,10 +851,10 @@ _tick = [0]
 def periodic():
     _tick[0] += 1
     if _tick[0] % 8 == 0:
-        refresh_learned()
+        refresh_learned(); refresh_monsters(); refresh_spots()
     root.after(250, periodic)
 
 
-refresh_skills(); refresh_cal(); refresh_learned(); pump(); periodic()
+refresh_skills(); refresh_cal(); refresh_learned(); refresh_monsters(); refresh_spots(); refresh_plan(); pump(); periodic()
 root.protocol("WM_DELETE_WINDOW", lambda: (stop(), root.destroy()))
 root.mainloop()
