@@ -851,6 +851,24 @@ def do_extract():
     _run(fn)
 
 
+def do_stage():
+    d = v_gdir.get().strip()
+    if not d or not Path(d).exists():
+        messagebox.showinfo("Archivos", "Primero busca o elige la carpeta de Aion."); return
+    events.put(("files", [("ok", "Copiando los .pak importantes (npcs, skills, world, textos)…")], None))
+
+    def fn():
+        work = engine.BASE / "game_work"
+        names = gamescan.stage_paks(d, work, log=lambda m: None)
+        if not names:
+            events.put(("files", [("warn", "No encontré .pak de npcs/skills/world/textos en esa carpeta.")], None)); return
+        events.put(("files", [("ok", f"{len(names)} archivos COPIADOS (el juego no se toca) a {gamescan.anon(work / 'PAK')}:")] +
+                    [("ok", n) for n in names[:12]] +
+                    [("ok", "Siguiente paso: abre esa carpeta con AION-Encdec (Descomprimir y Decodificar) y luego pulsa "
+                            "'Importar XML ya extraídos…' eligiendo la carpeta game_work\\PAK. Instrucciones en el README.")], None))
+    _run(fn)
+
+
 def do_import():
     d = filedialog.askdirectory(title="Carpeta con los XML ya extraídos")
     if not d:
@@ -876,7 +894,8 @@ def do_copy():
 fbar = ttk.Frame(fc, style="Card.TFrame")
 fbar.grid(row=2, column=0, columnspan=5, sticky="w")
 for _txt, _fn in (("Buscar Aion en mi PC", do_find), ("Elegir carpeta…", do_choose), ("Escanear", do_scan),
-                  ("Extraer .pak legibles e importar", do_extract), ("Importar XML ya extraídos…", do_import), ("Copiar informe", do_copy)):
+                  ("Extraer .pak legibles e importar", do_extract), ("Copiar .pak importantes a una carpeta de trabajo", do_stage),
+                  ("Importar XML ya extraídos…", do_import), ("Copiar informe", do_copy)):
     ttk.Button(fbar, text=_txt, command=_fn).pack(side="left", padx=(0, 6), pady=(0, 4))
 ftext.pack(fill="both", expand=True, padx=6, pady=6)
 

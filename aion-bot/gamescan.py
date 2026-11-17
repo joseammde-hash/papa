@@ -143,6 +143,38 @@ def probe_xml(path, max_bytes=2_000_000):
         return {"file": path.name, "kind": "xml_truncado_o_invalido"}
 
 
+IMPORTANT = ("npcs", "skills", "world", "string", "l10n", "quest", "items")
+
+
+def _priority(paks):
+    """Primero los .pak con datos útiles (npcs, skills, world…), luego el resto."""
+    return sorted(paks, key=lambda p: (not any(k in str(p).lower() for k in IMPORTANT), str(p).lower()))
+
+
+def important_paks(root):
+    """Lista de .pak con datos útiles dentro de la carpeta del juego."""
+    return [p for p in _priority(list(Path(root).rglob("*.pak"))) if any(k in p.name.lower() for k in ("npcs", "skills", "world", "string"))]
+
+
+def stage_paks(root, dest, max_mb=600, log=print):
+    """COPIA (no mueve) los .pak importantes a dest/PAK para trabajar con ellos sin tocar el juego."""
+    import shutil
+    out = Path(dest) / "PAK"
+    out.mkdir(parents=True, exist_ok=True)
+    copied, total = [], 0.0
+    for p in important_paks(root):
+        mb = p.stat().st_size / 1e6
+        if total + mb > max_mb:
+            log(f"Salto {p.name} ({mb:.0f} MB): se supera el límite de {max_mb} MB")
+            continue
+        rel = re.sub(r"[^\w.\-]", "_", "__".join(p.relative_to(root).parts))
+        shutil.copy2(p, out / rel)
+        copied.append(rel)
+        total += mb
+    log(f"{len(copied)} .pak copiados ({total:.0f} MB) a {anon(out)}")
+    return copied
+
+
 def inventory(root, max_files=300000, log=print):
     root = Path(root)
     by_ext, big, keyfiles, paks, xmls = {}, [], [], [], []
@@ -176,7 +208,8 @@ def inventory(root, max_files=300000, log=print):
         "ext": {k: {"n": v[0], "mb": round(v[1] / 1e6, 1)} for k, v in sorted(by_ext.items(), key=lambda kv: -kv[1][1])[:25]},
         "biggest": [{"file": anon(p.relative_to(root)), "mb": round(s / 1e6, 1)} for s, p in big[:12]],
         "key_files": [anon(p.relative_to(root)) for p in keyfiles[:60]],
-        "paks": [probe_pak(p) for p in paks[:40]],
+        "paks": [probe_pak(p) for p in _priority(paks)[:80]],
+        "paks_total": len(paks),
         "xml_samples": [probe_xml(p) for p in xmls[:15]],
         "configs": [anon(p.relative_to(root)) for p in root.rglob("*.cfg")][:10] +
                    [anon(p.relative_to(root)) for p in root.rglob("*.ini")][:10],
@@ -198,6 +231,10 @@ def report_lines(inv):
                               "herramienta de la comunidad (p. ej. AION-Encdec) y luego importar la carpeta resultante."))
     else:
         L.append(("warn", "No hay archivos .pak en esa carpeta: ¿es la carpeta correcta de Aion?"))
+    imp = [p for p in inv["paks"] if any(k in p["file"].lower() for k in ("npcs", "skills", "world", "string"))]
+    if imp:
+        L.append(("ok" if all(p["kind"] == "zip" for p in imp) else "warn",
+                  "Archivos de datos clave: " + ", ".join(f"{p['file']} → {'legible (ZIP)' if p['kind'] == 'zip' else 'cifrado'}" for p in imp[:10])))
     x_ok = [x for x in inv["xml_samples"] if x["kind"] == "xml"]
     x_bad = [x for x in inv["xml_samples"] if x["kind"] == "codificado"]
     if x_ok:
@@ -246,7 +283,7 @@ def _first(attrs, keys):
 def _strings(folder):
     """Tabla id→texto de los ficheros de cadenas (<string><id>…</id><body>…</body></string>)."""
     table = {}
-    for p in Path(folder).glob("*.xml"):
+    for p in Path(folder).rglob("*.xml"):
         if "string" not in p.name.lower():
             continue
         try:
@@ -271,7 +308,7 @@ def import_dir(folder, out_path=GAMEDATA_PATH, log=print):
             return None
         return strings.get(v.strip().upper(), v)
 
-    for p in sorted(folder.glob("*.xml")):
+    for p in sorted(folder.rglob("*.xml")):
         low = p.name.lower()
         kind = "npc" if re.search(r"npc|mob|monster", low) else "skill" if "skill" in low else None
         if not kind:

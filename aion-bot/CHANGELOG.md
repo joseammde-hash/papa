@@ -1,5 +1,10 @@
 # Novedades
 
+## 1.8.0
+- El escáner sondea primero los .pak con datos útiles (npcs, skills, world, textos) e indica cuáles son legibles.
+- Botón «Copiar .pak importantes a una carpeta de trabajo»: copia (no mueve) esos archivos a game_work\\PAK para extraerlos con AION-Encdec sin tocar el juego.
+- La importación lee XML en subcarpetas.
+
 ## 1.7.1
 - «Buscar Aion en mi PC» usa primero el proceso aion.bin en marcha para localizar la carpeta exacta del juego.
 

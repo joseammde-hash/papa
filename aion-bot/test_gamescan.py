@@ -104,3 +104,34 @@ class T(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class T2(unittest.TestCase):
+    def test_stage_copies_only_important_paks_without_touching_game(self):
+        game, work = Path(tempfile.mkdtemp()), Path(tempfile.mkdtemp())
+        for rel in ("Data/Europe/Npcs/Npcs.pak", "Data/Europe/skills/skills.pak", "Data/Sounds/music.pak", "L10N/2_esn/strings.pak"):
+            f = game / rel
+            f.parent.mkdir(parents=True, exist_ok=True)
+            f.write_bytes(b"x" * 1000)
+        names = gamescan.stage_paks(game, work, log=lambda m: None)
+        self.assertEqual(len(names), 3)                                       # music.pak no
+        self.assertTrue(all((work / "PAK" / n).exists() for n in names))
+        self.assertTrue((game / "Data/Europe/Npcs/Npcs.pak").exists())          # original intacto
+        self.assertTrue(any("Npcs" in n for n in names))
+
+    def test_import_reads_nested_folders(self):
+        d = Path(tempfile.mkdtemp())
+        (d / "Npcs" / "data").mkdir(parents=True)
+        (d / "Npcs" / "data" / "client_npcs.xml").write_text(NPC_XML, encoding="utf-8")
+        data = gamescan.import_dir(d, Path(tempfile.mkdtemp()) / "g.json", log=lambda m: None)
+        self.assertEqual(data["monsters"]["Kobold Soldier"]["level"], 14)
+
+    def test_report_marks_key_paks_status(self):
+        game = Path(tempfile.mkdtemp())
+        (game / "Data").mkdir()
+        with zipfile.ZipFile(game / "Data" / "Skills.pak", "w") as z:
+            z.writestr("a.xml", "<a/>")
+        (game / "Data" / "Npcs.pak").write_bytes(os.urandom(70000))
+        text = " | ".join(t for _, t in gamescan.report_lines(gamescan.inventory(game, log=lambda m: None)))
+        self.assertIn("Skills.pak → legible (ZIP)", text)
+        self.assertIn("Npcs.pak → cifrado", text)

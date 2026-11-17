@@ -80,6 +80,12 @@ camina hacia delante si no encuentra ninguno, y si la imagen no cambia mientras 
 (Calibración → Minimapa), cuenta los puntos rojos: sin ninguno camina directamente; con alguno, barre primero. Ajusta «Segundos por giro de 45°» en
 🔧 Diagnóstico con *Probar vuelta completa*. Si grabas una patrulla para el punto de farmeo, se usa esa en lugar de explorar.
 
+### Extraer los datos cifrados (AION-Encdec)
+Los .pak de EUROaion (npcs, skills, world…) suelen venir cifrados. Los programas que los abren (p. ej. [AION-Encdec](https://github.com/Iswenzz/AION-Encdec)) son de terceros
+y llevan ejecutables cerrados: úsalos bajo tu responsabilidad y pasa antes el antivirus. Hazlo SIEMPRE sobre copias: pulsa *Copiar .pak importantes a una carpeta de trabajo*
+(crea `game_work\PAK`), abre esa carpeta en AION-Encdec, usa *Unpack* y *Decode* (nunca *Repack*, y nunca sobre la carpeta del juego) y después en el bot
+*Importar XML ya extraídos…* → `game_work\PAK`.
+
 ## Qué decide el bot
 - **Habilidades**: por prioridad (orden de la lista), respetando cooldowns, maná mínimo, apertura (una vez por combate),
   remate (objetivo ≤ X %) y defensiva (mi vida ≤ X %). Si nada está listo, ataque básico.
