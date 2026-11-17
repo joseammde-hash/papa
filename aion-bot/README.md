@@ -52,6 +52,11 @@ Donde se puede farmear (1-8 Ishalgen, 10-20 Altgard, 21-26 Morheim) el bot va so
 instancias (ascensión al 9, campañas, Alquimia, Adma, Balaur Temple…) el bot no puede, así que te avisa y se pausa (o sigue farmeando, a tu elección).
 Las guías son antiguas y no pude abrir los temas completos del foro: contrasta los tramos y edita `guide.json`.
 
+## Vista: lo que ve el bot (pestaña 👁)
+El bot no se conecta al juego: mira la pantalla y pulsa teclas/clics en la ventana activa. Por eso Aion debe verse completo (ventana o
+ventana sin bordes), sin nada encima, y estar en primer plano. En *Vista* pulsa *Capturar*, pon Aion delante y verás tu pantalla con lo detectado
+dibujado encima y un informe (✔ bien, ⚠ aviso, ✖ error). Después usa *Usar esta ventana como la del juego*: así el bot deja de pulsar si Aion no está activo.
+
 ## Qué decide el bot
 - **Habilidades**: por prioridad (orden de la lista), respetando cooldowns, maná mínimo, apertura (una vez por combate),
   remate (objetivo ≤ X %) y defensiva (mi vida ≤ X %). Si nada está listo, ataque básico.

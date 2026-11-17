@@ -121,6 +121,12 @@ class ScreenPerception:
         except (TypeError, ValueError):
             return None
 
+    def game_focused(self, title):
+        """True/False si la ventana activa contiene 'title'; None si no se puede saber."""
+        from vision import foreground_title
+        t = foreground_title()
+        return None if t is None else title.lower() in t.lower()
+
     def read_name(self):
         """Nombre del objetivo actual (OCR). None si no hay región o no se puede leer."""
         reg = self.cfg["bars"].get("target_name_region")
@@ -223,6 +229,7 @@ class Brain:
         self.last_approach = 0
         self.warned_routes = set()
         self.notified_step = None
+        self.last_focus_warn = -1e9
 
     # -- utilidades -------------------------------------------------------
     @property
@@ -548,6 +555,14 @@ class Brain:
         s = self.perc.read()
         self.last_status = s
         b = self.cfg["behavior"]
+
+        gw = b.get("game_window", "")
+        focused = getattr(self.perc, "game_focused", None)
+        if gw and focused and focused(gw) is False:      # las teclas irían a otra aplicación
+            if now - self.last_focus_warn > 10:
+                self.last_focus_warn = now
+                self._alert(f"La ventana '{gw}' no está en primer plano: espero sin pulsar nada.")
+            return ["no_focus"]
 
         if s.hp is not None and s.hp <= 0.01:
             self.dead_ticks += 1

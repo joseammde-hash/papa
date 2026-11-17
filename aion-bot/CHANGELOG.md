@@ -1,5 +1,9 @@
 # Novedades
 
+## 1.3.0
+- Pestaña 👁 Vista: captura tu pantalla y dibuja lo que detecta el bot (barras, % leídos, nombre del objetivo, barra de habilidades con su rol).
+- Vigilancia de ventana: si Aion no está en primer plano el bot no pulsa nada (así no escribe en otra aplicación).
+
 ## 1.2.1
 - Añadida la zona Guardavieja (niveles 10-19). Cuenta como válida en el tramo de Altgard y el bot no te manda a otra zona si ya estás en una válida para tu nivel.
 

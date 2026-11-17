@@ -16,6 +16,7 @@ from skillbook import SkillBook
 from monsters import MonsterDB
 import updater
 from guide import load_guide, step_for
+import vision
 
 # --- Paleta asmodiana ------------------------------------------------------
 BG, PANEL, PANEL2 = "#09050f", "#130b21", "#1c1031"
@@ -733,6 +734,102 @@ def del_plan():
 
 ttk.Button(plr, text="Añadir", command=add_plan).pack(side="left")
 ttk.Button(plr, text="Borrar", command=del_plan).pack(side="left", padx=6)
+
+# ===========================================================================
+# Pestaña Vista (lo que ve el bot)
+# ===========================================================================
+tab_vi = ttk.Frame(nb)
+nb.add(tab_vi, text="👁  Vista")
+vc = card(tab_vi, fill="x", padx=6, pady=6)
+v_secs = tk.IntVar(value=5)
+last_title = [None]
+ttk.Label(vc, text="El bot NO se conecta al juego: mira la pantalla y pulsa teclas en la ventana activa. Pulsa 'Capturar', pon Aion en "
+                   "primer plano (esta ventana se oculta sola) y verás tu pantalla con lo que el bot detecta dibujado encima.",
+          style="Muted.TLabel", wraplength=800).grid(row=0, column=0, columnspan=6, sticky="w")
+b_snap = ttk.Button(vc, text="📸  Capturar en", style="Accent.TButton")
+b_snap.grid(row=1, column=0, pady=8, sticky="w")
+ttk.Spinbox(vc, from_=2, to=15, textvariable=v_secs, width=4).grid(row=1, column=1, padx=4)
+ttk.Label(vc, text="segundos", style="Card.TLabel").grid(row=1, column=2)
+b_win = ttk.Button(vc, text="Usar esta ventana como la del juego")
+b_win.grid(row=1, column=3, padx=14)
+lbl_vs = ttk.Label(vc, text="", style="Muted.TLabel")
+lbl_vs.grid(row=2, column=0, columnspan=6, sticky="w")
+vimg = tk.Label(tab_vi, bg=BG)
+vimg.pack(padx=6, pady=4)
+vrep = tk.Text(tab_vi, bg=PANEL2, fg=TEXT, relief="flat", height=9, font=("Segoe UI", 9), state="disabled",
+               highlightthickness=1, highlightbackground=LINE)
+vrep.pack(fill="x", padx=6, pady=(0, 6))
+vrep.tag_configure("ok", foreground=OK)
+vrep.tag_configure("warn", foreground="#ffd166")
+vrep.tag_configure("bad", foreground=DANGER)
+vphoto = [None]
+
+
+def show_report(lines):
+    vrep.config(state="normal"); vrep.delete("1.0", "end")
+    for lvl, txt in lines:
+        vrep.insert("end", ("✔ " if lvl == "ok" else "⚠ " if lvl == "warn" else "✖ ") + txt + "\n", lvl)
+    vrep.config(state="disabled")
+
+
+def finish_snap(title):
+    try:
+        import pyautogui
+        from PIL import ImageTk
+        shot = pyautogui.screenshot()
+    except Exception as ex:  # noqa: BLE001
+        root.deiconify(); lbl_vs.config(text=f"No se pudo capturar: {ex}"); return
+    root.deiconify()
+    collect_safe()
+    img, rep = vision.render_overlay(shot, cfg, book)
+    try:
+        if pyautogui.size() != shot.size:
+            rep.append(("warn", f"La captura ({shot.width}x{shot.height}) no coincide con la pantalla {tuple(pyautogui.size())}: "
+                                "pon la escala de Windows al 100 % o las coordenadas saldrán desplazadas."))
+    except Exception:  # noqa: BLE001
+        pass
+    gw = cfg["behavior"].get("game_window", "")
+    rep.append(("ok" if title else "warn", f"Ventana activa al capturar: «{title}»" if title else "No puedo saber la ventana activa (solo Windows)."))
+    rep.append(("ok" if gw else "warn", f"Vigilancia de ventana: «{gw}»" if gw else
+                "Vigilancia de ventana desactivada: si Aion no está en primer plano, el bot escribirá en otra aplicación. "
+                "Pon Aion delante, captura y pulsa 'Usar esta ventana como la del juego'."))
+    last_title[0] = title
+    w = 880
+    vphoto[0] = ImageTk.PhotoImage(img.resize((w, max(1, int(img.height * w / img.width)))))
+    vimg.config(image=vphoto[0])
+    show_report(rep)
+    lbl_vs.config(text=f"Captura hecha a las {time.strftime('%H:%M:%S')}")
+
+
+def collect_safe():
+    try:
+        collect()
+    except (ValueError, tk.TclError):
+        pass
+
+
+def snap(n=None):
+    n = int(v_secs.get()) if n is None else n
+    if n > 0:
+        lbl_vs.config(text=f"Pon Aion en primer plano… capturo en {n}")
+        root.after(1000, lambda: snap(n - 1))
+        return
+    title = vision.foreground_title()
+    root.withdraw(); root.update()
+    root.after(500, lambda: finish_snap(title))
+
+
+def use_window():
+    t = last_title[0]
+    if not t or t == root.title():
+        messagebox.showinfo("Ventana", "Primero captura con Aion en primer plano (la ventana activa tiene que ser la del juego).")
+        return
+    cfg["behavior"]["game_window"] = t
+    save_cfg()
+    lbl_vs.config(text=f"Vigilancia activada: el bot solo pulsará teclas si la ventana activa contiene «{t}».")
+
+
+b_snap.config(command=snap); b_win.config(command=use_window)
 
 # ===========================================================================
 # Pestaña Guía
