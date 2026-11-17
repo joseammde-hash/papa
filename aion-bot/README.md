@@ -16,6 +16,18 @@ no lee memoria del juego ni inyecta nada.
 
 F10 pausa · F12 detiene · ratón a una esquina = parada de emergencia.
 
+## Auto-habilidades (pestaña ✦)
+El bot puede **escanear tu barra de acceso rápido**, aprender qué hace cada habilidad y usarlas solo, incluidas las nuevas.
+1. Pestaña *Auto-habilidades* → *Marcar mi barra* (esquinas de TODA la barra), indica columnas/filas y las teclas de cada hueco
+   (p. ej. `1,2,3,4,5,6,7,8,9,0`; con una segunda fila `,shift` en modificadores).
+2. *Escanear ahora*: detecta los iconos. Elige el modo: manual / mixto / totalmente automático.
+3. Al combatir, cada habilidad desconocida se **prueba** (solo con tu vida ≥ 60 % y el objetivo con vida) y mide su efecto:
+   baja la vida del enemigo más que el ataque básico → **daño**; te sube la vida → **curación**; nada → **utilidad** (no se usa sola).
+4. Elige la de más daño medio cuando está lista (se ve por el icono: oscuro = enfriando), cura si tu vida < 50 %.
+5. Si pones una habilidad nueva en la barra, se detecta y se prueba sola. Lo aprendido se guarda en `skills_learned.json`.
+6. Corrígelo con *Forzar rol* (daño, curación, buff, ignorar) si se equivoca; los buffs y DoT suelen salir como "utilidad".
+Nunca toca las teclas de pociones ni las del sistema (Tab, botín, sentarse…). Necesita la barra de vida del objetivo calibrada.
+
 ## Qué decide el bot
 - **Habilidades**: por prioridad (orden de la lista), respetando cooldowns, maná mínimo, apertura (una vez por combate),
   remate (objetivo ≤ X %) y defensiva (mi vida ≤ X %). Si nada está listo, ataque básico.
@@ -32,5 +44,6 @@ F10 pausa · F12 detiene · ratón a una esquina = parada de emergencia.
 - Los rangos de zona de `knowledge.json` están escritos de memoria: verifícalos para EUROaion y edítalos.
 - No sabe navegar el mapa ni esquivar; las rutas son pulsaciones grabadas (dependen de dónde empieces).
 - El nivel solo se lee solo si instalas OCR; si no, súbelo tú a mano en *Personaje*.
-- La interfaz no se ha probado visualmente en el entorno de desarrollo (sin pantalla); la lógica sí tiene tests: `python -m unittest test_engine`.
+- El reconocimiento de iconos se ha probado con imágenes sintéticas, no con la barra real de Aion: usa *Escanear ahora* y comprueba que cuenta bien tus habilidades antes de lanzar el bot.
+- La interfaz no se ha probado visualmente en el entorno de desarrollo (sin pantalla); la lógica sí tiene tests: `python -m unittest test_engine test_skillbook`.
 - Revisa las reglas de EUROaion sobre bots: el riesgo de ban es tuyo. Vigila los primeros 20-30 min antes de dejarlo de noche.

@@ -12,6 +12,7 @@ from tkinter import messagebox, ttk
 
 import engine
 from engine import BotRunner, load_json, save_json
+from skillbook import SkillBook
 
 # --- Paleta asmodiana ------------------------------------------------------
 BG, PANEL, PANEL2 = "#09050f", "#130b21", "#1c1031"
@@ -201,7 +202,7 @@ refresh_rec()
 # Pestaña Habilidades
 # ===========================================================================
 tab_sk = ttk.Frame(nb)
-nb.add(tab_sk, text="🏹  Habilidades")
+nb.add(tab_sk, text="🏹  Rotación manual")
 tv = ttk.Treeview(tab_sk, columns=("name", "key", "cd", "opener", "thp", "shp", "mp", "on"), show="headings", height=8)
 for col, txt, w in (("name", "Habilidad", 210), ("key", "Tecla", 55), ("cd", "Enfr. (s)", 70), ("opener", "Apertura", 70),
                     ("thp", "Objetivo ≤ %", 90), ("shp", "Mi vida ≤ %", 90), ("mp", "Maná ≥ %", 80), ("on", "Activa", 60)):
@@ -337,6 +338,8 @@ def capture(key, label):
                 reg = [min(x1, x2), min(y1, y2), max(x1, x2), max(y1, y2)]
                 if key == "level_region":
                     cfg["bars"]["level_region"] = reg
+                elif key == "hotbar":
+                    cfg["hotbar"]["region"] = reg
                 else:
                     px = pyautogui.screenshot(region=(reg[0] + 2, (reg[1] + reg[3]) // 2, 1, 1)).getpixel((0, 0))
                     cfg["bars"][key]["region"] = reg; cfg["bars"][key]["color"] = list(px[:3])
@@ -358,7 +361,9 @@ for i, (k, txt) in enumerate((("hp", "Mi vida"), ("mp", "Mi maná"), ("target", 
 
 def refresh_cal():
     for k, lab in cal_lbl.items():
-        if k == "level_region":
+        if k == "hotbar":
+            lab.config(text=f"✔ {cfg['hotbar']['region']}" if cfg["hotbar"].get("region") else "sin marcar")
+        elif k == "level_region":
             lab.config(text="✔ marcado" if cfg["bars"].get("level_region") else "sin marcar (usa el nivel manual)")
         else:
             b = cfg["bars"][k]
@@ -379,6 +384,110 @@ def live_test():
 
 
 ttk.Button(cc, text="Probar lectura (6 s, mira la pestaña Batalla)", command=live_test).grid(row=6, column=0, columnspan=3, sticky="w", pady=(14, 0))
+
+# ===========================================================================
+# Pestaña Auto-habilidades
+# ===========================================================================
+book = SkillBook.load(engine.LEARNED_PATH, log=log)
+MODES = {"Solo mi rotación manual": "manual", "Mixto: mi rotación + habilidades aprendidas": "hybrid",
+         "Totalmente automático (solo aprendidas)": "auto"}
+tab_au = ttk.Frame(nb)
+nb.add(tab_au, text="✦  Auto-habilidades")
+hb_cfg, ac_cfg = cfg["hotbar"], cfg["auto_skills"]
+v_auto_on = tk.BooleanVar(value=ac_cfg.get("enabled", True))
+v_mode = tk.StringVar(value=[k for k, v in MODES.items() if v == ac_cfg.get("mode", "hybrid")][0])
+v_cols, v_rows = tk.IntVar(value=hb_cfg["cols"]), tk.IntVar(value=hb_cfg["rows"])
+v_keys, v_mods = tk.StringVar(value=",".join(hb_cfg["keys"])), tk.StringVar(value=",".join(hb_cfg.get("row_mods", [""])))
+ac_ = card(tab_au, fill="x", padx=6, pady=6)
+ttk.Checkbutton(ac_, text="Escanear mi barra de habilidades y usar las que aprenda (incluidas las nuevas)",
+                variable=v_auto_on).grid(row=0, column=0, columnspan=4, sticky="w")
+ttk.Combobox(ac_, textvariable=v_mode, values=list(MODES), width=48, state="readonly").grid(row=1, column=0, columnspan=4, sticky="w", pady=6)
+ttk.Button(ac_, text="Marcar mi barra", command=lambda: capture("hotbar", "Barra")).grid(row=2, column=0, sticky="w")
+cal_lbl["hotbar"] = ttk.Label(ac_, text="", style="Muted.TLabel")
+cal_lbl["hotbar"].grid(row=2, column=1, columnspan=3, sticky="w", padx=8)
+ttk.Label(ac_, text="Columnas", style="Card.TLabel").grid(row=3, column=0, sticky="w", pady=(8, 0))
+ttk.Spinbox(ac_, from_=1, to=12, textvariable=v_cols, width=5).grid(row=3, column=1, sticky="w", pady=(8, 0))
+ttk.Label(ac_, text="Filas", style="Card.TLabel").grid(row=3, column=2, sticky="e", pady=(8, 0))
+ttk.Spinbox(ac_, from_=1, to=4, textvariable=v_rows, width=5).grid(row=3, column=3, sticky="w", pady=(8, 0))
+ttk.Label(ac_, text="Teclas por columna", style="Card.TLabel").grid(row=4, column=0, sticky="w")
+ttk.Entry(ac_, textvariable=v_keys, width=34).grid(row=4, column=1, columnspan=3, sticky="w")
+ttk.Label(ac_, text="Modificador por fila (ej: ,shift)", style="Card.TLabel").grid(row=5, column=0, sticky="w")
+ttk.Entry(ac_, textvariable=v_mods, width=34).grid(row=5, column=1, columnspan=3, sticky="w")
+
+lt = ttk.Treeview(tab_au, columns=("name", "key", "role", "dmg", "heal", "cd", "n", "st"), show="headings", height=8)
+for col, txt, w in (("name", "Habilidad", 190), ("key", "Tecla", 70), ("role", "Rol", 90), ("dmg", "Daño %", 70),
+                    ("heal", "Cura %", 70), ("cd", "Enfr. s", 70), ("n", "Pruebas", 70), ("st", "Estado", 110)):
+    lt.heading(col, text=txt); lt.column(col, width=w, anchor="w" if col == "name" else "center")
+lt.pack(fill="x", padx=6, pady=4)
+ROLE_TXT = {"unknown": "por probar", "damage": "daño", "heal": "curación", "buff": "buff",
+            "utility": "utilidad (no se usa)", "ignore": "ignorar"}
+
+
+def refresh_learned():
+    sel = lt.selection()
+    lt.delete(*lt.get_children())
+    for e in book.entries.values():
+        live = book.live.get(e["id"])
+        st_ = "no está en la barra" if live is None else ("lista" if live["ready"] else "enfriando")
+        lt.insert("", "end", iid=e["id"], values=(e["name"], e["key"], ROLE_TXT.get(book.role(e), book.role(e)),
+                  f"{e['avg_drop']:.1f}", f"{e['avg_heal']:.1f}", e["cooldown"] or "—", e["n"], st_))
+    if sel and lt.exists(sel[0]):
+        lt.selection_set(sel[0])
+
+
+def set_role(r):
+    for iid in lt.selection():
+        book.entries[iid]["role_user"] = r
+    book.dirty = True; refresh_learned()
+
+
+rb = ttk.Frame(tab_au); rb.pack(fill="x", padx=6)
+ttk.Label(rb, text="Forzar rol:", foreground=MUTED).pack(side="left", padx=(0, 6))
+for txt, r in (("Daño", "damage"), ("Curación", "heal"), ("Buff", "buff"), ("Ignorar", "ignore"), ("Automático", "auto")):
+    ttk.Button(rb, text=txt, command=lambda r=r: set_role(r)).pack(side="left", padx=(0, 6))
+v_name = tk.StringVar()
+ttk.Entry(rb, textvariable=v_name, width=20).pack(side="left", padx=(14, 4))
+
+
+def rename():
+    for iid in lt.selection():
+        if v_name.get():
+            book.entries[iid]["name"] = v_name.get()
+    book.dirty = True; refresh_learned()
+
+
+ttk.Button(rb, text="Renombrar", command=rename).pack(side="left")
+
+
+def scan_now():
+    try:
+        collect()
+        from engine import ScreenPerception
+        slots = ScreenPerception(cfg)._slots()
+    except Exception as ex:  # noqa: BLE001
+        log(f"No se pudo escanear: {ex}"); return
+    if slots is None:
+        log("Primero marca tu barra de habilidades."); return
+    book.excluded = engine.excluded_keys(cfg)
+    new = book.update(slots, time.time())
+    log(f"Escaneo: {sum(s.occupied for s in slots)} huecos con habilidad, {len(new)} nuevas")
+    book.save(engine.LEARNED_PATH); refresh_learned()
+
+
+def forget():
+    if messagebox.askyesno("Olvidar", "¿Borrar todo lo aprendido de tus habilidades?"):
+        book.forget(); refresh_learned()
+
+
+bb = ttk.Frame(tab_au); bb.pack(fill="x", padx=6, pady=8)
+ttk.Button(bb, text="Escanear ahora", style="Accent.TButton", command=scan_now).pack(side="left", padx=(0, 8))
+ttk.Button(bb, text="Olvidar lo aprendido", command=forget).pack(side="left")
+ttk.Label(tab_au, wraplength=820, foreground=MUTED, text=(
+    "Cómo funciona: el bot reconoce cada icono de tu barra, y cuando una habilidad está lista la prueba en combate "
+    "(solo con tu vida ≥ 60 % y el objetivo con vida). Mide cuánto baja la vida del enemigo respecto al ataque básico "
+    "(→ daño), si te cura (→ curación) o nada (→ utilidad: no se usa sola). Las habilidades nuevas que pongas en la "
+    "barra se detectan y se prueban solas. Corrige a mano con 'Forzar rol' si se equivoca (p. ej. un buff o un DoT). "
+    "No toca las teclas de pociones ni de tu rotación manual (salvo en modo automático).")).pack(anchor="w", padx=8)
 
 # ===========================================================================
 # Pestaña Rutas
@@ -443,6 +552,11 @@ ttk.Label(tab_kn, text="Los rangos están escritos de memoria. Si EUROaion usa o
 def collect():
     ch.update(level=int(v_level.get()), zone=v_zone.get(), gear_power=int(v_power.get()),
               auto_zone_check=v_auto.get(), pause_on_zone_change=v_pausez.get(), auto_route=v_route.get())
+    hb, ac = cfg["hotbar"], cfg["auto_skills"]
+    hb.update(cols=int(v_cols.get()), rows=int(v_rows.get()),
+              keys=[k.strip() for k in v_keys.get().split(",")],
+              row_mods=[m.strip() for m in v_mods.get().split(",")])
+    ac.update(enabled=v_auto_on.get(), mode=MODES[v_mode.get()])
     for k, (key, below, cd) in pv.items():
         cfg["potions"][k] = {"key": key.get(), "below": float(below.get() or 0), "cooldown": float(cd.get() or 10)}
 
@@ -463,7 +577,7 @@ def start():
     if miss and not messagebox.askyesno("Sin calibrar", "Faltan barras por calibrar (vida / objetivo). Sin ellas el bot "
                                         "funciona a ciegas y es mucho menos fiable. ¿Continuar?"):
         return
-    runner = BotRunner(cfg, kn, log=log, on_status=on_status, alert=alert)
+    runner = BotRunner(cfg, kn, log=log, on_status=on_status, alert=alert, book=book)
     runner.start()
     start_hotkeys()
 
@@ -527,6 +641,16 @@ def pump():
     root.after(250, pump)
 
 
-refresh_skills(); refresh_cal(); pump()
+_tick = [0]
+
+
+def periodic():
+    _tick[0] += 1
+    if _tick[0] % 8 == 0:
+        refresh_learned()
+    root.after(250, periodic)
+
+
+refresh_skills(); refresh_cal(); refresh_learned(); pump(); periodic()
 root.protocol("WM_DELETE_WINDOW", lambda: (stop(), root.destroy()))
 root.mainloop()

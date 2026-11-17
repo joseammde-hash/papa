@@ -1,36 +1,148 @@
 {
   "_comentario": "Teclas con nombres de pyautogui. Pon en cada habilidad la tecla de TU barra de acceso rápido. El orden de la lista es la prioridad.",
   "character": {
-    "name": "", "class": "Ranger", "race": "Asmodiano",
-    "level": 13, "zone": "Morheim",
+    "name": "",
+    "class": "Ranger",
+    "race": "Asmodiano",
+    "level": 13,
+    "zone": "Morheim",
     "gear_power": 2,
-    "auto_zone_check": true, "pause_on_zone_change": true, "auto_route": false
+    "auto_zone_check": true,
+    "pause_on_zone_change": true,
+    "auto_route": false
   },
-  "keys": {"target": "tab", "basic_attack": "r", "loot": "f", "sit": "x", "esc": "escape"},
+  "keys": {
+    "target": "tab",
+    "basic_attack": "r",
+    "loot": "f",
+    "sit": "x",
+    "esc": "escape"
+  },
   "skills": [
-    {"name": "Defensiva / escape", "key": "6", "cooldown": 60, "self_hp_max": 30, "after_delay": 1.0, "enabled": true},
-    {"name": "Apertura a distancia", "key": "1", "cooldown": 0, "opener": true, "after_delay": 1.5, "enabled": true},
-    {"name": "Remate", "key": "5", "cooldown": 6, "target_hp_max": 30, "after_delay": 1.2, "enabled": true},
-    {"name": "Habilidad con enfriamiento B", "key": "4", "cooldown": 15, "min_mp": 15, "after_delay": 1.5, "enabled": true},
-    {"name": "Habilidad con enfriamiento A", "key": "3", "cooldown": 8, "min_mp": 10, "after_delay": 1.5, "enabled": true},
-    {"name": "Ataque principal", "key": "2", "cooldown": 0, "after_delay": 1.2, "enabled": true}
+    {
+      "name": "Defensiva / escape",
+      "key": "6",
+      "cooldown": 60,
+      "self_hp_max": 30,
+      "after_delay": 1.0,
+      "enabled": true
+    },
+    {
+      "name": "Apertura a distancia",
+      "key": "1",
+      "cooldown": 0,
+      "opener": true,
+      "after_delay": 1.5,
+      "enabled": true
+    },
+    {
+      "name": "Remate",
+      "key": "5",
+      "cooldown": 6,
+      "target_hp_max": 30,
+      "after_delay": 1.2,
+      "enabled": true
+    },
+    {
+      "name": "Habilidad con enfriamiento B",
+      "key": "4",
+      "cooldown": 15,
+      "min_mp": 15,
+      "after_delay": 1.5,
+      "enabled": true
+    },
+    {
+      "name": "Habilidad con enfriamiento A",
+      "key": "3",
+      "cooldown": 8,
+      "min_mp": 10,
+      "after_delay": 1.5,
+      "enabled": true
+    },
+    {
+      "name": "Ataque principal",
+      "key": "2",
+      "cooldown": 0,
+      "after_delay": 1.2,
+      "enabled": true
+    }
   ],
   "potions": {
-    "hp": {"key": "7", "below": 45, "cooldown": 12},
-    "mp": {"key": "8", "below": 30, "cooldown": 12}
+    "hp": {
+      "key": "7",
+      "below": 45,
+      "cooldown": 12
+    },
+    "mp": {
+      "key": "8",
+      "below": 30,
+      "cooldown": 12
+    }
   },
   "bars": {
-    "hp": {"region": null, "color": null, "tol": 60},
-    "mp": {"region": null, "color": null, "tol": 60},
-    "target": {"region": null, "color": null, "tol": 60},
+    "hp": {
+      "region": null,
+      "color": null,
+      "tol": 60
+    },
+    "mp": {
+      "region": null,
+      "color": null,
+      "tol": 60
+    },
+    "target": {
+      "region": null,
+      "color": null,
+      "tol": 60
+    },
     "level_region": null
   },
   "behavior": {
-    "rest_below": 60, "rest_until": 90, "rest_max_seconds": 60,
-    "stuck_seconds": 20, "loot_presses": 3, "target_retry_seconds": 1.0,
-    "wander_after_fails": 6, "wander_keys": ["w"], "wander_seconds": 1.0,
-    "idle_alert_seconds": 180, "pause_on_idle": true,
-    "blind_fight_seconds": 12, "dead_ticks": 12,
-    "zone_check_seconds": 60, "max_runtime_minutes": 480
+    "rest_below": 60,
+    "rest_until": 90,
+    "rest_max_seconds": 60,
+    "stuck_seconds": 20,
+    "loot_presses": 3,
+    "target_retry_seconds": 1.0,
+    "wander_after_fails": 6,
+    "wander_keys": [
+      "w"
+    ],
+    "wander_seconds": 1.0,
+    "idle_alert_seconds": 180,
+    "pause_on_idle": true,
+    "blind_fight_seconds": 12,
+    "dead_ticks": 12,
+    "zone_check_seconds": 60,
+    "max_runtime_minutes": 480
+  },
+  "hotbar": {
+    "region": null,
+    "cols": 10,
+    "rows": 1,
+    "keys": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6",
+      "7",
+      "8",
+      "9",
+      "0"
+    ],
+    "row_mods": [
+      ""
+    ],
+    "occupied_std": 12
+  },
+  "auto_skills": {
+    "enabled": true,
+    "mode": "hybrid",
+    "explore_per_fight": 2,
+    "explore_min_hp": 60,
+    "observe_seconds": 2.0,
+    "after_delay": 1.2
   }
 }

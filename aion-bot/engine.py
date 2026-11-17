@@ -8,12 +8,14 @@ import threading
 import time
 import random
 from dataclasses import dataclass
+from skillbook import SkillBook, analyze_hotbar
 from pathlib import Path
 
 BASE = Path(__file__).parent
 CONFIG_PATH = BASE / "config.json"
 KNOWLEDGE_PATH = BASE / "knowledge.json"
 ROUTES_PATH = BASE / "routes.json"
+LEARNED_PATH = BASE / "skills_learned.json"
 
 
 def load_json(path, default=None):
@@ -57,6 +59,7 @@ class Status:
     mp: float | None = None
     thp: float | None = None     # vida del objetivo
     level: int | None = None
+    slots: list | None = None    # barra de acceso rápido escaneada
 
 
 def bar_fraction(pixels, color, tol=60):
@@ -105,8 +108,16 @@ class ScreenPerception:
         except Exception:
             return None
 
+    def _slots(self):
+        hb = self.cfg.get("hotbar") or {}
+        if not hb.get("region"):
+            return None
+        x1, y1, x2, y2 = hb["region"]
+        return analyze_hotbar(self.pg.screenshot(region=(x1, y1, x2 - x1, y2 - y1)), hb)
+
     def read(self):
-        return Status(self._bar("hp"), self._bar("mp"), self._bar("target"), self._level())
+        return Status(self._bar("hp"), self._bar("mp"), self._bar("target"),
+                      self._level(), self._slots())
 
 
 class Actuator:
@@ -117,13 +128,25 @@ class Actuator:
         self.pg = pyautogui
 
     def press(self, key):
-        self.pg.press(key)
+        if "+" in key and key != "+":      # combinaciones tipo 'shift+1'
+            self.pg.hotkey(*key.split("+"))
+        else:
+            self.pg.press(key)
 
     def down(self, key):
         self.pg.keyDown(key)
 
     def up(self, key):
         self.pg.keyUp(key)
+
+
+def excluded_keys(cfg):
+    """Teclas que el bot nunca debe tratar como habilidades aprendidas (pociones, sistema, rotación manual)."""
+    ex = {cfg["potions"]["hp"]["key"], cfg["potions"]["mp"]["key"]}
+    ex |= set(cfg["keys"].values())
+    if cfg.get("auto_skills", {}).get("mode") != "auto":
+        ex |= {sk["key"] for sk in cfg["skills"]}
+    return ex
 
 
 # --------------------------------------------------------------------------
@@ -133,8 +156,10 @@ class Brain:
     """Un 'tick' cada ~0.25 s: mira el estado y decide una acción."""
 
     def __init__(self, cfg, knowledge, perception, actuator,
-                 clock=time.time, log=print, alert=None, routes=None, sleep=time.sleep):
+                 clock=time.time, log=print, alert=None, routes=None, sleep=time.sleep,
+                 book=None):
         self.cfg, self.perc, self.act = cfg, perception, actuator
+        self.book = book if book is not None else SkillBook.load(LEARNED_PATH, log)
         self.sleep = sleep
         self.planner = ZonePlanner(knowledge["zones"])
         self.clock, self.log = clock, log
@@ -163,6 +188,8 @@ class Brain:
         self.request_pause = False
         self.started = self.clock()
         self.last_status = Status()
+        self.pending_obs = []
+        self.explored = 0
 
     # -- utilidades -------------------------------------------------------
     @property
@@ -226,6 +253,7 @@ class Brain:
             self.opener_pending = True
             self.last_progress = now
             self.last_thp = s.thp if s.thp is not None else 1.0
+            self.explored = 0
             self.log("Combate iniciado")
         if s.thp is not None:
             if s.thp < self.last_thp - 0.005:
@@ -237,9 +265,14 @@ class Brain:
             self.in_combat = False
             self.last_progress = now
             return ["drop_target"]
+        self._finish_due_obs(s, now)
         if now >= self.next_skill_time:
-            sk = self._pick_skill(s, now)
-            if sk:
+            mode = self.cfg.get("auto_skills", {}).get("mode", "manual")
+            sk = self._pick_skill(s, now) if mode != "auto" else None
+            auto = None if sk or mode == "manual" else self._auto_skill(s, now)
+            if auto:
+                acts.append(auto)
+            elif sk:
                 self._use("skill:" + sk["name"], sk["key"], now)
                 if sk.get("opener"):
                     self.opener_pending = False
@@ -247,11 +280,56 @@ class Brain:
                 acts.append("skill:" + sk["name"])
             elif self._ready("basic", 1.5, now):
                 self._use("basic", self.cfg["keys"]["basic_attack"], now)
+                if not self.pending_obs:
+                    self.pending_obs.append(self.book.begin_obs("_basic", s, now))
                 self.next_skill_time = now + 0.5
                 acts.append("basic")
         return acts
 
+    # -- habilidades aprendidas de la barra --------------------------------
+    def _excluded_keys(self):
+        return excluded_keys(self.cfg)
+
+    def _scan_hotbar(self, s, now):
+        if s.slots is None or not self.cfg.get("auto_skills", {}).get("enabled", True):
+            return
+        self.book.excluded = self._excluded_keys()
+        new = self.book.update(s.slots, now)
+        if len(new) > 3:
+            self.log(f"✦ {len(new)} habilidades detectadas en la barra")
+        else:
+            for e in new:
+                self.log(f"✦ Habilidad nueva detectada en {e['key']} ({e['name']}): la probaré en combate")
+
+    def _auto_skill(self, s, now):
+        ac = self.cfg.get("auto_skills", {})
+        if not ac.get("enabled", True) or s.slots is None:
+            return None
+        pick = self.book.choose(s, self.explored < ac.get("explore_per_fight", 2),
+                                ac.get("explore_min_hp", 60))
+        if not pick:
+            return None
+        e, why = pick
+        self.act.press(e["key"])
+        self.last_used["auto:" + e["id"]] = now
+        self.next_skill_time = now + ac.get("after_delay", 1.2)
+        if why == "explore":
+            self.explored += 1
+        self.pending_obs = [o for o in self.pending_obs if o["id"] != "_basic"]
+        self.pending_obs.append(self.book.begin_obs(e["id"], s, now))
+        self.log(f"Uso {e['name']} [{why}]")
+        return f"auto:{e['id']}:{why}"
+
+    def _finish_due_obs(self, s, now, force=False):
+        wait = self.cfg.get("auto_skills", {}).get("observe_seconds", 2.0)
+        potion = now - self.last_used.get("pot_hp", -1e9) < wait + 1
+        for ob in list(self.pending_obs):
+            if force or now - ob["t"] >= wait:
+                self.book.finish_obs(ob, s, potion)
+                self.pending_obs.remove(ob)
+
     def _end_fight(self, now):
+        self._finish_due_obs(Status(self.last_status.hp, self.last_status.mp, 0.0), now, force=True)
         self.in_combat = False
         self.kills += 1
         self.last_kill_time = now
@@ -343,6 +421,7 @@ class Brain:
             self.dead_ticks = 0
 
         acts = self._potions(s, now)
+        self._scan_hotbar(s, now)
         self._check_zone(now, s.level)
 
         has_target = (s.thp is not None and s.thp > 0.02) or \
@@ -422,8 +501,9 @@ def record_route(stop_key="f9", max_seconds=300):
 # Ejecución en segundo plano con pausa/parada
 # --------------------------------------------------------------------------
 class BotRunner:
-    def __init__(self, cfg, knowledge, log=print, on_status=lambda b: None, alert=None):
+    def __init__(self, cfg, knowledge, log=print, on_status=lambda b: None, alert=None, book=None):
         self.cfg, self.kn, self.log = cfg, knowledge, log
+        self.book = book
         self.on_status, self.alert = on_status, alert
         self.paused = False
         self.stopped = threading.Event()
@@ -444,8 +524,9 @@ class BotRunner:
     def _loop(self):
         try:
             brain = Brain(self.cfg, self.kn, ScreenPerception(self.cfg), Actuator(),
-                          log=self.log, alert=self.alert,
+                          log=self.log, alert=self.alert, book=self.book,
                           routes=load_json(ROUTES_PATH, {}))
+            last_save = time.time()
             self.log("Empezando en 5 s: pon la ventana de Aion en primer plano.")
             for _ in range(50):
                 if self.stopped.is_set():
@@ -462,9 +543,17 @@ class BotRunner:
                 if not self.paused:
                     brain.tick()
                 self.on_status(brain)
+                if brain.book.dirty and time.time() - last_save > 20:
+                    brain.book.save(LEARNED_PATH)
+                    last_save = time.time()
                 time.sleep(0.25)
         except Exception as e:  # noqa: BLE001
             self.log(f"ERROR: {e}")
         finally:
+            try:
+                if self.book is not None:
+                    self.book.save(LEARNED_PATH)
+            except OSError:
+                pass
             self.log("Bot detenido.")
             self.stopped.set()
