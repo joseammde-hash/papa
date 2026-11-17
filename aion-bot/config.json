@@ -5,7 +5,7 @@
     "class": "Ranger",
     "race": "Asmodiano",
     "level": 13,
-    "zone": "Morheim",
+    "zone": "Altgard",
     "gear_power": 2,
     "auto_zone_check": true,
     "pause_on_zone_change": true,

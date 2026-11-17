@@ -46,7 +46,7 @@ class T(unittest.TestCase):
         cfg = {"farm_plan": [{"from_level": 5, "zone": "Ishalgen"}, {"from_level": 12, "zone": "Morheim"}]}
         self.assertEqual(plan_zone(cfg, pl, 8, 0)["name"], "Ishalgen")
         self.assertEqual(plan_zone(cfg, pl, 8, 4)["name"], "Morheim")      # equipo fuerte adelanta
-        self.assertEqual(plan_zone({}, pl, 13, 0)["name"], "Morheim")      # sin plan: conocimiento
+        self.assertEqual(plan_zone({}, pl, 13, 0)["name"], "Altgard")      # sin plan: conocimiento
 
     def _brain(self, seq, names, db, cfg=None, routes=None):
         cfg = cfg or load_json(CONFIG_PATH)

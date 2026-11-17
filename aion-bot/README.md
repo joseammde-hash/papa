@@ -59,7 +59,7 @@ y pregunta antes de instalar. Solo reemplaza código; **no toca** tu config, lo 
   Si grabaste una ruta (pestaña *Rutas*) y activaste "ejecutar ruta", la hace sola.
 
 ## Límites honestos
-- Los rangos de zona de `knowledge.json` están escritos de memoria: verifícalos para EUROaion y edítalos.
+- Los rangos de zona de `knowledge.json` están escritos de memoria y NO verificados para la 4.6 de EUROaion: comprueba el nivel recomendado de cada zona en el juego y edítalos.
 - No sabe navegar el mapa ni esquivar; las rutas son pulsaciones grabadas (dependen de dónde empieces).
 - El nivel solo se lee solo si instalas OCR; si no, súbelo tú a mano en *Personaje*.
 - El reconocimiento de iconos se ha probado con imágenes sintéticas, no con la barra real de Aion: usa *Escanear ahora* y comprueba que cuenta bien tus habilidades antes de lanzar el bot.

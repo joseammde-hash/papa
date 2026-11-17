@@ -41,8 +41,8 @@ class T(unittest.TestCase):
     def test_zones(self):
         p = ZonePlanner(KN["zones"])
         self.assertEqual(p.recommend(9, 0)["name"], "Ishalgen")
-        self.assertEqual(p.recommend(13, 0)["name"], "Morheim")
-        self.assertEqual(p.recommend(9, 2)["name"], "Morheim")   # equipo fuerte adelanta
+        self.assertEqual(p.recommend(13, 0)["name"], "Altgard")
+        self.assertEqual(p.recommend(9, 2)["name"], "Altgard")    # equipo fuerte adelanta
         self.assertEqual(p.recommend(28, 2)["name"], "Beluslan")
 
     def test_potion_threshold_depends_on_gear(self):
@@ -77,7 +77,7 @@ class T(unittest.TestCase):
         b = Brain(cfg, KN, FakePerc([Status(1, 1, 0)]), FakeAct(), clock=ck,
                   log=lambda m: None, alert=alerts.append, sleep=lambda s: None)
         b.tick()
-        self.assertTrue(alerts and "Altgard" in alerts[0])
+        self.assertTrue(alerts and "Morheim" in alerts[0])
         self.assertTrue(b.request_pause)
 
     def test_death_pauses(self):
