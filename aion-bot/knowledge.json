@@ -17,6 +17,13 @@
       "mobs": []
     },
     {
+      "name": "Guardavieja",
+      "min": 10,
+      "max": 19,
+      "notas": "Añadida por el usuario (niveles 10-19).",
+      "mobs": []
+    },
+    {
       "name": "Morheim",
       "min": 20,
       "max": 29,

@@ -1,5 +1,8 @@
 # Novedades
 
+## 1.2.1
+- Añadida la zona Guardavieja (niveles 10-19). Cuenta como válida en el tramo de Altgard y el bot no te manda a otra zona si ya estás en una válida para tu nivel.
+
 ## 1.2.0
 - Guía de leveling (pestaña 📖): ruta por tramos de nivel basada en guías de EuroAion 4.6. El bot farmea los tramos que puede y te avisa en los de misiones/instancias.
 

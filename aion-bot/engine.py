@@ -44,7 +44,10 @@ class ZonePlanner:
         gear_bonus suma niveles 'virtuales' por llevar equipo muy fuerte."""
         eff = level + gear_bonus
         ok = [z for z in self.zones if z["min"] <= eff]
-        return ok[-1] if ok else self.zones[0]
+        if not ok:
+            return self.zones[0]
+        top = max(z["min"] for z in ok)
+        return next(z for z in ok if z["min"] == top)      # con empate, la primera de la tabla
 
     def by_name(self, name):
         for z in self.zones:
@@ -427,8 +430,13 @@ class Brain:
             return
         if step and step["mode"] == "grind":
             rec = {"name": step["zone"], "min": step["from"], "max": step["to"], "notas": step["title"]}
+            if ch["zone"] in step.get("zonas_validas", []):      # p. ej. Guardavieja vale como Altgard
+                rec["name"] = ch["zone"]
         else:
             rec = plan_zone(self.cfg, self.planner, ch["level"], self.power)
+            cur = self.planner.by_name(ch["zone"])
+            if cur and cur["min"] <= ch["level"] + self.power <= cur["max"]:
+                rec = cur                                         # ya estás en una zona válida para tu nivel
         if rec["name"] != ch["zone"] and rec["name"] != self.notified_zone:
             self.notified_zone = rec["name"]
             self._alert(f"Con nivel {ch['level']} y tu equipo, la zona ideal es "

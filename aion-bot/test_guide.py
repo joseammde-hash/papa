@@ -33,6 +33,16 @@ class T(unittest.TestCase):
         b.tick()
         self.assertTrue(alerts and "Morheim" in alerts[0])
 
+    def test_guardavieja_is_valid_for_10_19(self):
+        for guide_on in (True, False):
+            b, alerts = self._brain(13, "Guardavieja")
+            b.cfg["guide"]["enabled"] = guide_on
+            b.tick()
+            self.assertEqual(alerts, [], f"guía={guide_on}")
+        b, alerts = self._brain(22, "Guardavieja")             # al 21+ sí toca Morheim
+        b.tick()
+        self.assertTrue(alerts and "Morheim" in alerts[0])
+
     def test_in_right_zone_no_alert(self):
         b, alerts = self._brain(13, "Altgard")
         b.tick()
