@@ -1,5 +1,8 @@
 # Novedades
 
+## 1.7.1
+- «Buscar Aion en mi PC» usa primero el proceso aion.bin en marcha para localizar la carpeta exacta del juego.
+
 ## 1.7.0
 - Exploración autónoma: si no hay monstruos, el personaje gira buscando (Tab), camina, detecta si se queda atascado y sale solo.
 - Minimapa (opcional): cuenta los puntos rojos para saber si hay monstruos cerca y caminar directamente si no los hay.

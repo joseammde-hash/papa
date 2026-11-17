@@ -801,7 +801,8 @@ def do_find():
     events.put(("files", [("ok", "Buscando Aion en tus discos (puede tardar hasta 30 s)…")], None))
 
     def fn():
-        found = gamescan.find_install()
+        running = gamescan.running_install()
+        found = [running] if running else gamescan.find_install()
         if not found:
             events.put(("files", [("warn", "No lo encuentro automáticamente: pulsa 'Elegir carpeta…' y selecciona la carpeta de Aion "
                                            "(la que contiene bin32 o bin64).")], None)); return

@@ -47,6 +47,12 @@ class T(unittest.TestCase):
         found = gamescan.find_install([base], max_depth=4)
         self.assertEqual(found, [base / "Juegos" / "EUROaion"])
 
+    def test_running_install_from_process_path(self):
+        run = lambda cmd: "C:\\Juegos\\EUROaion\\bin64\\aion.bin\r\n"
+        p = gamescan.running_install(run=run)
+        self.assertEqual(p.name, "EUROaion")
+        self.assertIsNone(gamescan.running_install(run=lambda cmd: ""))      # proceso no encontrado o sin permisos
+
     def test_inventory_classifies_files(self):
         inv = gamescan.inventory(self.d, log=lambda m: None)
         kinds = {p["file"]: p["kind"] for p in inv["paks"]}

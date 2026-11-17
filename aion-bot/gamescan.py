@@ -35,6 +35,24 @@ def anon(p):
 
 
 # -- localizar la instalación -------------------------------------------------
+def running_install(proc="aion.bin", run=None):
+    """Carpeta de instalación a partir del proceso de Aion en marcha (solo Windows). None si no se puede."""
+    import subprocess
+    import sys
+    if run is None and not sys.platform.startswith("win"):
+        return None
+    run = run or (lambda cmd: subprocess.run(cmd, capture_output=True, text=True, timeout=15).stdout)
+    out = run(["powershell", "-NoProfile", "-Command",
+               f"(Get-Process {proc.replace('.bin', '')}* -ErrorAction SilentlyContinue | "
+               f"Where-Object {{ $_.ProcessName -like '{proc.split('.')[0]}*' }} | Select-Object -First 1).Path"]).strip()
+    if not out:
+        return None
+    line = out.splitlines()[0].strip()
+    from pathlib import PureWindowsPath
+    p = PureWindowsPath(line) if "\\" in line else Path(line)          # rutas de Windows aunque se pruebe en otro sistema
+    return p.parent.parent if p.parent.name.lower() in ("bin32", "bin64") else p.parent
+
+
 def find_install(roots=None, max_depth=4, time_limit=25):
     """Busca carpetas que contengan bin32/bin64/aion.bin. Devuelve una lista de rutas."""
     if roots is None:
