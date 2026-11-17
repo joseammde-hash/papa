@@ -1,5 +1,10 @@
 # Novedades
 
+## 1.6.0
+- Pestaña 📂 Archivos del juego: busca tu carpeta de Aion, la escanea (solo lectura), extrae los .pak legibles e importa nombres y niveles de monstruos y habilidades.
+- El bot descarta monstruos muy por debajo o por encima de tu nivel usando esos datos.
+- Indicador de conexión con el juego en la pestaña Batalla y comprobación previa al iniciar (no arranca si no ve la barra de vida o Aion no está delante).
+
 ## 1.5.0
 - Autoconfiguración: detecta las barras de vida, maná y objetivo y la barra de habilidades en una captura (botón ✨ en la pestaña Vista, o `python autoconfig.py captura.png`).
 

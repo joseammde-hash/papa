@@ -4,6 +4,8 @@
 pip install pyautogui pynput pillow   (opcional para leer el nivel: pytesseract)
 python app.py
 """
+import json
+from pathlib import Path
 import queue
 import threading
 import time
@@ -20,6 +22,8 @@ import vision
 import inputs
 import diagnostics
 import autoconfig
+import gamescan
+from tkinter import filedialog
 
 # --- Paleta asmodiana ------------------------------------------------------
 BG, PANEL, PANEL2 = "#09050f", "#130b21", "#1c1031"
@@ -143,6 +147,17 @@ lbl_kph = ttk.Label(info, text="0 / hora", style="Muted.TLabel")
 lbl_kph.pack(anchor="w")
 lbl_zone = ttk.Label(info, text="", style="Card.TLabel")
 lbl_zone.pack(anchor="w", pady=(8, 0))
+conn = ttk.Frame(top, style="Card.TFrame")
+conn.grid(row=3, column=0, columnspan=4, sticky="w", pady=(10, 0))
+ttk.Label(conn, text="Conexión con el juego:", style="Muted.TLabel").pack(side="left", padx=(0, 10))
+lamps = {}
+for _k in ("win", "hp", "tg", "bar"):
+    lamps[_k] = tk.Label(conn, text="● sin iniciar", bg=PANEL, fg=MUTED, font=("Segoe UI", 9))
+    lamps[_k].pack(side="left", padx=(0, 14))
+
+
+def set_lamp(k, ok, text):
+    lamps[k].config(text="● " + text, fg=OK if ok is True else DANGER if ok is False else MUTED)
 
 btns = ttk.Frame(tab_run)
 btns.pack(fill="x", padx=6)
@@ -739,6 +754,128 @@ ttk.Button(plr, text="Añadir", command=add_plan).pack(side="left")
 ttk.Button(plr, text="Borrar", command=del_plan).pack(side="left", padx=6)
 
 # ===========================================================================
+# Pestaña Archivos del juego
+# ===========================================================================
+tab_fi = ttk.Frame(nb)
+nb.add(tab_fi, text="📂  Archivos del juego")
+fc = card(tab_fi, fill="x", padx=6, pady=6)
+v_gdir = tk.StringVar(value=cfg.get("game_dir", ""))
+ttk.Label(fc, text="Lee los ARCHIVOS de tu carpeta de Aion (solo lectura): nombres y niveles de monstruos, habilidades y textos. "
+                   "No lee la memoria del juego ni la red (eso lo detecta el anti-trampas). Con los niveles, el bot descarta monstruos "
+                   "muy por debajo o por encima de tu nivel.", style="Muted.TLabel", wraplength=800).grid(row=0, column=0, columnspan=5, sticky="w")
+ttk.Entry(fc, textvariable=v_gdir, width=70).grid(row=1, column=0, columnspan=4, sticky="we", pady=8)
+ftext = tk.Text(tab_fi, bg=PANEL2, fg=TEXT, relief="flat", height=16, font=("Segoe UI", 9), state="disabled",
+                highlightthickness=1, highlightbackground=LINE, wrap="word")
+for _t, _c in (("ok", OK), ("warn", "#ffd166"), ("bad", DANGER)):
+    ftext.tag_configure(_t, foreground=_c)
+last_inv = [None]
+last_lines = [[]]
+
+
+def show_files(lines, extra=None):
+    if extra and extra[0] == "set":
+        v_gdir.set(extra[1]); cfg["game_dir"] = extra[1]
+    if extra and extra[0] == "inv":
+        last_inv[0] = extra[1]
+    last_lines[0] = lines
+    ftext.config(state="normal"); ftext.delete("1.0", "end")
+    for lvl, txt in lines:
+        ftext.insert("end", ("✔ " if lvl == "ok" else "⚠ " if lvl == "warn" else "✖ ") + txt + "\n\n", lvl)
+    ftext.config(state="disabled")
+
+
+def _run(fn):
+    def work():
+        try:
+            fn()
+        except Exception as ex:  # noqa: BLE001
+            events.put(("files", [("bad", f"Error: {ex}")], None))
+    threading.Thread(target=work, daemon=True).start()
+
+
+def do_find():
+    events.put(("files", [("ok", "Buscando Aion en tus discos (puede tardar hasta 30 s)…")], None))
+
+    def fn():
+        found = gamescan.find_install()
+        if not found:
+            events.put(("files", [("warn", "No lo encuentro automáticamente: pulsa 'Elegir carpeta…' y selecciona la carpeta de Aion "
+                                           "(la que contiene bin32 o bin64).")], None)); return
+        events.put(("files", [("ok", f"Encontrado: {gamescan.anon(p)}") for p in found], ("set", str(found[0]))))
+    _run(fn)
+
+
+def do_choose():
+    d = filedialog.askdirectory(title="Carpeta de instalación de Aion")
+    if d:
+        v_gdir.set(d); cfg["game_dir"] = d
+
+
+def do_scan():
+    d = v_gdir.get().strip()
+    if not d or not Path(d).exists():
+        messagebox.showinfo("Archivos", "Primero busca o elige la carpeta de Aion."); return
+    events.put(("files", [("ok", "Escaneando… (puede tardar un minuto)")], None))
+
+    def fn():
+        inv = gamescan.inventory(d, log=lambda m: None)
+        lines = gamescan.report_lines(inv)
+        (engine.BASE / "gamescan_report.json").write_text(json.dumps(inv, indent=1, ensure_ascii=False), encoding="utf-8")
+        lines.append(("ok", "Informe guardado en gamescan_report.json (sin tu nombre de usuario). Si algo no se lee, "
+                            "pulsa 'Copiar informe' y pégalo en el chat para que se ajuste el lector."))
+        events.put(("files", lines, ("inv", inv)))
+    _run(fn)
+
+
+def do_extract():
+    d = v_gdir.get().strip()
+    if not d or not Path(d).exists():
+        messagebox.showinfo("Archivos", "Primero busca o elige la carpeta de Aion."); return
+    events.put(("files", [("ok", "Extrayendo XML de los .pak legibles…")], None))
+
+    def fn():
+        out = engine.BASE / "game_extract"
+        n = gamescan.extract_paks(d, out, log=lambda m: None)
+        if not n:
+            events.put(("files", [("warn", "Ningún .pak se pudo abrir como ZIP (están cifrados). Extráelos con una herramienta de la "
+                                           "comunidad (p. ej. AION-Encdec), y usa 'Importar carpeta de XML extraídos'.")], None)); return
+        data = gamescan.import_dir(out, log=lambda m: None)
+        events.put(("files", [("ok", f"{n} XML extraídos."), ("ok" if data["monsters"] else "warn",
+                    f"Importados {len(data['monsters'])} monstruos y {len(data['skills'])} habilidades "
+                    f"(se usarán al iniciar el bot).")] + [("ok", f"{f['file']}: {f['records']} registros") for f in data["files"]], None))
+    _run(fn)
+
+
+def do_import():
+    d = filedialog.askdirectory(title="Carpeta con los XML ya extraídos")
+    if not d:
+        return
+
+    def fn():
+        data = gamescan.import_dir(d, log=lambda m: None)
+        events.put(("files", [("ok" if data["monsters"] else "warn",
+                    f"Importados {len(data['monsters'])} monstruos y {len(data['skills'])} habilidades.")] +
+                    [("ok", f"{f['file']}: {f['records']} registros") for f in data["files"]] +
+                    ([] if data["files"] else [("warn", "No encontré XML de NPC o habilidades legibles en esa carpeta.")]), None))
+    _run(fn)
+
+
+def do_copy():
+    txt = "\n".join(t for _, t in last_lines[0])
+    if last_inv[0]:
+        txt += "\n\n" + json.dumps(last_inv[0], ensure_ascii=False)[:6000]
+    root.clipboard_clear(); root.clipboard_append(txt)
+    lbl_vs.config(text="Informe copiado al portapapeles")
+
+
+fbar = ttk.Frame(fc, style="Card.TFrame")
+fbar.grid(row=2, column=0, columnspan=5, sticky="w")
+for _txt, _fn in (("Buscar Aion en mi PC", do_find), ("Elegir carpeta…", do_choose), ("Escanear", do_scan),
+                  ("Extraer .pak legibles e importar", do_extract), ("Importar XML ya extraídos…", do_import), ("Copiar informe", do_copy)):
+    ttk.Button(fbar, text=_txt, command=_fn).pack(side="left", padx=(0, 6), pady=(0, 4))
+ftext.pack(fill="both", expand=True, padx=6, pady=6)
+
+# ===========================================================================
 # Pestaña Diagnóstico
 # ===========================================================================
 tab_dg = ttk.Frame(nb)
@@ -1134,6 +1271,8 @@ def pump():
             if kind == "log":
                 log_box.config(state="normal"); log_box.insert("end", a, b or ()); log_box.see("end")
                 log_box.config(state="disabled")
+            elif kind == "files":
+                show_files(a, b)
             elif kind == "diag":
                 show_diag(a, b)
             elif kind == "beep":
@@ -1146,6 +1285,14 @@ def pump():
                 for k, v in (("hp", s.hp), ("mp", s.mp), ("tg", s.thp)):
                     pb, lab = bars[k]
                     pb["value"] = (v or 0) * 100; lab.config(text="—" if v is None else f"{v:.0%}")
+                fs = getattr(a, "focus_state", None)
+                set_lamp("win", fs, "Ventana del juego: activa" if fs else "Ventana del juego: NO activa" if fs is False
+                         else "Ventana: sin vigilancia")
+                set_lamp("hp", None if s.hp is None else s.hp > 0,
+                         "Vida: sin calibrar" if s.hp is None else f"Vida: la leo ({s.hp:.0%})" if s.hp > 0 else "Vida: NO la veo")
+                set_lamp("tg", None if s.thp is None else True, "Objetivo: sin calibrar" if s.thp is None else "Objetivo: leído")
+                set_lamp("bar", None if s.slots is None else True, "Habilidades: sin marcar" if s.slots is None
+                         else f"Habilidades: {sum(1 for x in s.slots if x.occupied)} detectadas")
                 lbl_kills.config(text=f"{a.kills} kills"); lbl_kph.config(text=f"{a.kills_per_hour():.0f} / hora")
                 lbl_zone.config(text=f"Zona: {cfg['character']['zone']}  ·  Punto: {cfg['character'].get('spot') or '—'}  ·  Nivel {cfg['character']['level']}")
                 try:

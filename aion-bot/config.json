@@ -157,7 +157,10 @@
     "auto_spot": true,
     "spot_check_seconds": 30,
     "explore_minutes": 5,
-    "switch_ratio": 0.7
+    "switch_ratio": 0.7,
+    "use_levels": true,
+    "grey_below": 5,
+    "danger_above": 6
   },
   "spots": [],
   "farm_plan": [],
@@ -165,5 +168,6 @@
     "enabled": true,
     "manual_policy": "avisar",
     "level_bonus": 0
-  }
+  },
+  "game_dir": ""
 }

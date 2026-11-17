@@ -67,6 +67,13 @@ Con Aion delante, vida y maná llenos, un enemigo seleccionado con vida llena y 
 Detecta solo las barras de vida, maná y objetivo (por su color) y la barra de habilidades (columnas y filas). Revisa el resultado en la misma vista.
 La barra de experiencia y el nombre del objetivo se marcan a mano en Calibración. También funciona desde una captura guardada: `python autoconfig.py captura.png --apply`.
 
+## Archivos del juego (pestaña 📂) y conexión
+El bot no se «conecta» al juego: lee la pantalla y los archivos de tu carpeta de Aion (solo lectura). En la pestaña *Batalla* ves 4 indicadores de conexión
+(ventana activa, vida, objetivo, habilidades) y, al pulsar *Iniciar*, el bot comprueba que ve la barra de vida y que Aion está delante; si no, no arranca y te avisa.
+En *Archivos del juego*: *Buscar Aion* → *Escanear* → *Extraer .pak legibles e importar*. Si tus .pak están cifrados, extráelos antes con una herramienta
+de la comunidad y usa *Importar XML ya extraídos*. Con los niveles de monstruos el bot descarta los 5+ niveles por debajo (casi sin XP) o 6+ por encima (peligrosos).
+No se lee la memoria ni la red del juego: lo detecta el anti-trampas y causa bans.
+
 ## Qué decide el bot
 - **Habilidades**: por prioridad (orden de la lista), respetando cooldowns, maná mínimo, apertura (una vez por combate),
   remate (objetivo ≤ X %) y defensiva (mi vida ≤ X %). Si nada está listo, ataque básico.

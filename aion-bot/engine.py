@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from skillbook import SkillBook, analyze_hotbar
 from monsters import MonsterDB, clean_name, plan_zone, xp_gain
 from guide import load_guide, step_for
+from gamescan import GameData
 from pathlib import Path
 
 BASE = Path(__file__).parent
@@ -195,6 +196,7 @@ class Brain:
         self.db = db if db is not None else MonsterDB.load(MONSTERS_PATH)
         self.should_stop = lambda: False
         self.guide = load_guide()
+        self.gamedata = GameData.load()
         self.book = book if book is not None else SkillBook.load(LEARNED_PATH, log)
         self.sleep = sleep
         self.planner = ZonePlanner(knowledge["zones"])
@@ -236,6 +238,7 @@ class Brain:
         self.warned_routes = set()
         self.notified_step = None
         self.last_focus_warn = -1e9
+        self.focus_state = None
 
     # -- utilidades -------------------------------------------------------
     @property
@@ -502,9 +505,10 @@ class Brain:
         reader = getattr(self.perc, "read_name", None)
         name = reader() if reader else None
         self.pending_name = name
-        if name and not self.db.should_fight(name, min_samples=mc.get("min_samples", 3),
-                                             keep_ratio=mc.get("keep_ratio", 0.6),
-                                             max_danger=mc.get("max_danger", 80)) \
+        if name and (not self.db.should_fight(name, min_samples=mc.get("min_samples", 3),
+                                              keep_ratio=mc.get("keep_ratio", 0.6),
+                                              max_danger=mc.get("max_danger", 80))
+                     or self._level_bad(name, mc)) \
                 and self.skip_streak < mc.get("max_skips", 6):
             self.skip_streak += 1
             self.act.press(self.cfg["keys"]["esc"])
@@ -513,6 +517,16 @@ class Brain:
             return "skip:" + name
         self.skip_streak = 0
         return None
+
+    def _level_bad(self, name, mc):
+        """Con los datos del juego: descarta monstruos muy por debajo (casi sin XP) o muy por encima (peligrosos) de tu nivel."""
+        if not mc.get("use_levels", True) or self.db.monsters.get(name, {}).get("pref") == "farm":
+            return False
+        lv = self.gamedata.level_of(name)
+        if lv is None:
+            return False
+        diff = lv - self.cfg["character"]["level"]
+        return diff <= -mc.get("grey_below", 5) or diff >= mc.get("danger_above", 6)
 
     def _record_fight(self, now):
         f, self.fight = self.fight, None
@@ -564,7 +578,8 @@ class Brain:
 
         gw = b.get("game_window", "")
         focused = getattr(self.perc, "game_focused", None)
-        if gw and focused and focused(gw) is False:      # las teclas irían a otra aplicación
+        self.focus_state = focused(gw) if (gw and focused) else None
+        if gw and focused and self.focus_state is False:      # las teclas irían a otra aplicación
             if now - self.last_focus_warn > 10:
                 self.last_focus_warn = now
                 self._alert(f"La ventana '{gw}' no está en primer plano: espero sin pulsar nada.")
@@ -616,6 +631,24 @@ class Brain:
         if s.thp is None and "target" in acts:   # sin barra de objetivo: modo ciego
             self.blind_until = now + b["blind_fight_seconds"]
         return acts
+
+
+def preflight(perc, cfg):
+    """Comprobación de conexión con la pantalla del juego. Devuelve (ok, [(nivel, texto)])."""
+    s = perc.read()
+    pct = lambda v: "sin calibrar" if v is None else f"{v:.0%}"
+    L = [("ok" if s.hp else "bad", f"Vida: {pct(s.hp)}"), ("ok" if s.mp else "warn", f"Maná: {pct(s.mp)}"),
+         ("ok" if s.thp is not None else "warn", f"Objetivo: {pct(s.thp)}"),
+         ("ok" if s.slots else "warn", "Barra de habilidades: " + ("sin marcar" if s.slots is None else
+                                                                 f"{sum(1 for x in s.slots if x.occupied)} huecos con habilidad"))]
+    gw = cfg["behavior"].get("game_window", "")
+    f = getattr(perc, "game_focused", None)
+    if gw and f:
+        st = f(gw)
+        L.append(("ok" if st else "bad" if st is False else "warn",
+                  f"Ventana «{gw}»: " + ("activa" if st else "NO está en primer plano" if st is False else "no se puede comprobar")))
+    ok = bool(s.hp) and not (gw and f and f(gw) is False)
+    return ok, L
 
 
 # --------------------------------------------------------------------------
@@ -705,6 +738,14 @@ class BotRunner:
                 if self.stopped.is_set():
                     return
                 time.sleep(0.1)
+            ok, lines = preflight(brain.perc, self.cfg)
+            for lvl, txt in lines:
+                self.log(("✔ " if lvl == "ok" else "⚠ " if lvl == "warn" else "✖ ") + "Conexión · " + txt)
+            if not ok:
+                if self.alert:
+                    self.alert("El bot NO está conectado a la pantalla del juego (no veo la barra de vida o Aion no está en "
+                               "primer plano). Revisa la pestaña 👁 Vista o usa ✨ Configurar automáticamente. No arranco.")
+                return
             limit = self.cfg["behavior"]["max_runtime_minutes"] * 60
             while not self.stopped.is_set():
                 if time.time() - brain.started > limit:
