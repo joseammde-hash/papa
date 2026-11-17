@@ -1,5 +1,8 @@
 # Novedades
 
+## 1.8.2
+- HANDOFF.md: resumen del proyecto para continuar desde una sesión de Claude en el PC del usuario.
+
 ## 1.8.1
 - Lector ajustado al formato real de tu cliente: client_npcs.xml dentro de Npcs.pak (nombres por código desc → texto) y textos de L10N\\2_<idioma>\\data\\Strings.
 - Elección del idioma del juego, y aviso de cuántos XML están legibles o codificados.
