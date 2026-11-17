@@ -62,6 +62,11 @@ Con Aion en primer plano y en un sitio seguro, *Probar movimiento* mantiene `W` 
 y activa el que funciona. Si ninguno mueve al personaje: ejecuta el bot como administrador (clic derecho en INICIAR.bat) si Aion va como
 administrador, usa modo ventana/sin bordes y revisa que `W` sea tu tecla de avanzar.
 
+## Configuración automática (✨ en la pestaña Vista)
+Con Aion delante, vida y maná llenos, un enemigo seleccionado con vida llena y la barra de habilidades visible: *Capturar* → *Configurar automáticamente*.
+Detecta solo las barras de vida, maná y objetivo (por su color) y la barra de habilidades (columnas y filas). Revisa el resultado en la misma vista.
+La barra de experiencia y el nombre del objetivo se marcan a mano en Calibración. También funciona desde una captura guardada: `python autoconfig.py captura.png --apply`.
+
 ## Qué decide el bot
 - **Habilidades**: por prioridad (orden de la lista), respetando cooldowns, maná mínimo, apertura (una vez por combate),
   remate (objetivo ≤ X %) y defensiva (mi vida ≤ X %). Si nada está listo, ataque básico.

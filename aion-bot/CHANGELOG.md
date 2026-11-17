@@ -1,5 +1,8 @@
 # Novedades
 
+## 1.5.0
+- Autoconfiguración: detecta las barras de vida, maná y objetivo y la barra de habilidades en una captura (botón ✨ en la pestaña Vista, o `python autoconfig.py captura.png`).
+
 ## 1.4.0
 - Pestaña 🔧 Diagnóstico: prueba si el personaje se mueve con dos métodos de teclado y activa solo el que funciona.
 - Nuevo modo de teclas por scancode (juegos que ignoran las teclas normales).

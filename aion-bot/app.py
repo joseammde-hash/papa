@@ -19,6 +19,7 @@ from guide import load_guide, step_for
 import vision
 import inputs
 import diagnostics
+import autoconfig
 
 # --- Paleta asmodiana ------------------------------------------------------
 BG, PANEL, PANEL2 = "#09050f", "#130b21", "#1c1031"
@@ -830,6 +831,8 @@ ttk.Spinbox(vc, from_=2, to=15, textvariable=v_secs, width=4).grid(row=1, column
 ttk.Label(vc, text="segundos", style="Card.TLabel").grid(row=1, column=2)
 b_win = ttk.Button(vc, text="Usar esta ventana como la del juego")
 b_win.grid(row=1, column=3, padx=14)
+b_auto = ttk.Button(vc, text="✨  Configurar automáticamente", command=lambda: auto_config())
+b_auto.grid(row=1, column=4, padx=6)
 lbl_vs = ttk.Label(vc, text="", style="Muted.TLabel")
 lbl_vs.grid(row=2, column=0, columnspan=6, sticky="w")
 vimg = tk.Label(tab_vi, bg=BG)
@@ -850,17 +853,16 @@ def show_report(lines):
     vrep.config(state="disabled")
 
 
-def finish_snap(title):
-    try:
-        import pyautogui
-        from PIL import ImageTk
-        shot = pyautogui.screenshot()
-    except Exception as ex:  # noqa: BLE001
-        root.deiconify(); lbl_vs.config(text=f"No se pudo capturar: {ex}"); return
-    root.deiconify()
+last_shot = [None]
+
+
+def render_shot(shot, title, pre=()):
+    from PIL import ImageTk
     collect_safe()
     img, rep = vision.render_overlay(shot, cfg, book)
+    rep = list(pre) + rep
     try:
+        import pyautogui
         if pyautogui.size() != shot.size:
             rep.append(("warn", f"La captura ({shot.width}x{shot.height}) no coincide con la pantalla {tuple(pyautogui.size())}: "
                                 "pon la escala de Windows al 100 % o las coordenadas saldrán desplazadas."))
@@ -877,6 +879,31 @@ def finish_snap(title):
     vimg.config(image=vphoto[0])
     show_report(rep)
     lbl_vs.config(text=f"Captura hecha a las {time.strftime('%H:%M:%S')}")
+
+
+def finish_snap(title):
+    try:
+        import pyautogui
+        shot = pyautogui.screenshot()
+    except Exception as ex:  # noqa: BLE001
+        root.deiconify(); lbl_vs.config(text=f"No se pudo capturar: {ex}"); return
+    root.deiconify()
+    last_shot[0] = shot
+    render_shot(shot, title)
+
+
+def auto_config():
+    shot = last_shot[0]
+    if shot is None:
+        messagebox.showinfo("Autoconfiguración", "Primero pulsa 'Capturar' con Aion en primer plano, con vida y maná llenos, "
+                                                 "un enemigo seleccionado con vida llena y la barra de habilidades visible.")
+        return
+    res = autoconfig.detect(shot)
+    autoconfig.apply(cfg, res)
+    if res["hotbar"]:
+        v_cols.set(res["hotbar"]["cols"]); v_rows.set(res["hotbar"]["rows"])
+    save_cfg(); refresh_cal()
+    render_shot(shot, last_title[0], pre=res["notes"])
 
 
 def collect_safe():
