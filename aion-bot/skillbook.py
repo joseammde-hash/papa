@@ -37,6 +37,7 @@ def analyze_hotbar(img, hb):
     cw, ch = w / cols, h / rows
     mods = hb.get("row_mods") or []
     keys = hb.get("keys") or []
+    skip = set(hb.get("ignore_rows") or [])     # filas (0 = la de arriba) con pergaminos/consumibles
     slots = []
     for r in range(rows):
         mod = mods[r] if r < len(mods) else ""
@@ -55,7 +56,7 @@ def analyze_hotbar(img, hb):
                 sig = (sig << 1) | (1 if v > m else 0)
             base = keys[c] if c < len(keys) else ""
             key = f"{mod}+{base}" if (mod and base) else base
-            slots.append(Slot(r * cols + c, key, bool(base) and std >= hb.get("occupied_std", 12), sig, mean))
+            slots.append(Slot(r * cols + c, key, bool(base) and r not in skip and std >= hb.get("occupied_std", 12), sig, mean))
     return slots
 
 

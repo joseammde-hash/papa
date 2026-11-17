@@ -46,6 +46,19 @@ class T(unittest.TestCase):
         new = b.update(analyze_hotbar(bar([5, 9, 18, None, None, 33]), HB), 9)
         self.assertEqual([e["key"] for e in new], ["6"])
 
+    def test_ignore_scroll_row(self):
+        hb = dict(HB, rows=3, ignore_rows=[0], row_mods=["", "shift", "ctrl"])
+        img = Image.new("RGB", (400, 120), (40, 40, 40))
+        d = ImageDraw.Draw(img)
+        for r in range(3):
+            for c, p in enumerate((5, 9)):
+                icon(d, c * 40, p + r)          # icono distinto en cada fila
+                img.paste(img.crop((c * 40, 0, c * 40 + 40, 40)), (c * 40, r * 40))
+        sl = analyze_hotbar(img, hb)
+        self.assertFalse(any(s.occupied for s in sl if s.idx < 10))        # fila de arriba ignorada
+        self.assertEqual([s.key for s in sl if s.idx in (10, 11, 20)], ["shift+1", "shift+2", "ctrl+1"])
+        self.assertTrue(sl[10].occupied and sl[20].occupied)
+
     def test_learning_roles(self):
         b = SkillBook(log=lambda m: None)
         b.update(analyze_hotbar(bar([5, 9, 18, 33]), HB), 0)

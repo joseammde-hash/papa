@@ -119,7 +119,7 @@
   "hotbar": {
     "region": null,
     "cols": 10,
-    "rows": 1,
+    "rows": 3,
     "keys": [
       "1",
       "2",
@@ -133,9 +133,14 @@
       "0"
     ],
     "row_mods": [
+      "",
+      "",
       ""
     ],
-    "occupied_std": 12
+    "occupied_std": 12,
+    "ignore_rows": [
+      0
+    ]
   },
   "auto_skills": {
     "enabled": true,

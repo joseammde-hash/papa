@@ -397,6 +397,7 @@ hb_cfg, ac_cfg = cfg["hotbar"], cfg["auto_skills"]
 v_auto_on = tk.BooleanVar(value=ac_cfg.get("enabled", True))
 v_mode = tk.StringVar(value=[k for k, v in MODES.items() if v == ac_cfg.get("mode", "hybrid")][0])
 v_cols, v_rows = tk.IntVar(value=hb_cfg["cols"]), tk.IntVar(value=hb_cfg["rows"])
+v_skip = tk.StringVar(value=",".join(str(i + 1) for i in hb_cfg.get("ignore_rows", [])))
 v_keys, v_mods = tk.StringVar(value=",".join(hb_cfg["keys"])), tk.StringVar(value=",".join(hb_cfg.get("row_mods", [""])))
 ac_ = card(tab_au, fill="x", padx=6, pady=6)
 ttk.Checkbutton(ac_, text="Escanear mi barra de habilidades y usar las que aprenda (incluidas las nuevas)",
@@ -413,6 +414,10 @@ ttk.Label(ac_, text="Teclas por columna", style="Card.TLabel").grid(row=4, colum
 ttk.Entry(ac_, textvariable=v_keys, width=34).grid(row=4, column=1, columnspan=3, sticky="w")
 ttk.Label(ac_, text="Modificador por fila (ej: ,shift)", style="Card.TLabel").grid(row=5, column=0, sticky="w")
 ttk.Entry(ac_, textvariable=v_mods, width=34).grid(row=5, column=1, columnspan=3, sticky="w")
+ttk.Label(ac_, text="Filas a ignorar (1 = arriba)", style="Card.TLabel").grid(row=6, column=0, sticky="w")
+ttk.Entry(ac_, textvariable=v_skip, width=34).grid(row=6, column=1, columnspan=3, sticky="w")
+ttk.Label(ac_, text="Pon aquí la fila de pergaminos/consumibles para que el bot no la use como habilidades.",
+          style="Muted.TLabel").grid(row=7, column=0, columnspan=4, sticky="w")
 
 lt = ttk.Treeview(tab_au, columns=("name", "key", "role", "dmg", "heal", "cd", "n", "st"), show="headings", height=8)
 for col, txt, w in (("name", "Habilidad", 190), ("key", "Tecla", 70), ("role", "Rol", 90), ("dmg", "Daño %", 70),
@@ -555,7 +560,8 @@ def collect():
     hb, ac = cfg["hotbar"], cfg["auto_skills"]
     hb.update(cols=int(v_cols.get()), rows=int(v_rows.get()),
               keys=[k.strip() for k in v_keys.get().split(",")],
-              row_mods=[m.strip() for m in v_mods.get().split(",")])
+              row_mods=[m.strip() for m in v_mods.get().split(",")],
+              ignore_rows=[int(x) - 1 for x in v_skip.get().split(",") if x.strip().isdigit()])
     ac.update(enabled=v_auto_on.get(), mode=MODES[v_mode.get()])
     for k, (key, below, cd) in pv.items():
         cfg["potions"][k] = {"key": key.get(), "below": float(below.get() or 0), "cooldown": float(cd.get() or 10)}
